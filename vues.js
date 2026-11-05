@@ -8,7 +8,11 @@
   let courante = null, route = null;
   const css = document.createElement('style');
   css.textContent = `
-  .vues { display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--bord); border-radius: 10px; background: var(--surface-2, var(--surface)); }
+  /* même place dans les trois vues : en haut à droite, centré dans une barre de 58 px (la barre lui laisse la place) ;
+     la largeur d'une éventuelle barre de défilement est retranchée : même distance au bord de la fenêtre partout */
+  .vues { position: fixed; top: 11px; right: calc(34px - (100vw - 100%)); z-index: 60; display: inline-flex; padding: 3px; gap: 2px; border: 1px solid var(--bord); border-radius: 10px; background: var(--surface-2, var(--surface)); }
+  .barre { min-height: 58px; box-sizing: border-box; padding-right: 250px !important; }
+  @media (max-width: 860px) { .vues { position: static; } .barre { padding-right: 10px !important; } }
   .vues a { padding: 5px 12px; border-radius: 7px; font-size: 13px; font-weight: 650; color: var(--doux); text-decoration: none; white-space: nowrap; }
   .vues a:hover { color: var(--texte); }
   .vues a.on { background: var(--surface); color: var(--texte); box-shadow: 0 1px 3px rgb(15 23 42 / .15); }

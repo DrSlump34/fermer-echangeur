@@ -36,7 +36,7 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 
 /* ===== Mise en page bureau ========================================================= */
 .app { display: grid; grid-template-columns: 300px minmax(0, 1fr) 360px; grid-template-rows: auto 1fr; height: 100dvh; }
-.barre { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-bottom: 1px solid var(--bord); background: color-mix(in srgb, var(--surface) 82%, transparent); backdrop-filter: saturate(1.4) blur(14px); position: sticky; top: 0; z-index: 5; }
+.barre { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; padding: 8px 18px; border-bottom: 1px solid var(--bord); background: color-mix(in srgb, var(--surface) 82%, transparent); backdrop-filter: saturate(1.4) blur(14px); position: sticky; top: 0; z-index: 5; }
 .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -.01em; }
 .logo svg { width: 28px; height: 28px; }
 .recherche { margin-left: auto; display: flex; align-items: center; gap: 10px; min-width: 280px; padding: 8px 12px; border: 1px solid var(--bord); border-radius: 11px; background: var(--surface); color: var(--doux); cursor: pointer; transition: border-color var(--t); }
@@ -59,8 +59,8 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 .entete .titre { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
 .entete .titre h1 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
 .entete .titre .meta { color: var(--doux); font-size: 13px; }
-.entete .gauche { justify-self: end; } .entete .droite { justify-self: start; }
-.entete .milieu { text-align: center; color: var(--doux); font-size: 12px; }
+.entete .gauche { justify-self: end; } .entete .droite, .pied .droite { justify-self: start; }
+.entete .milieu, .pied .milieu { text-align: center; color: var(--doux); font-size: 12px; }
 .options { display: flex; gap: 8px; margin-left: auto; }
 .puce { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--bord); border-radius: 999px; background: var(--surface); cursor: pointer; font-size: 13px; user-select: none; }
 .puce input { accent-color: var(--accent); }
@@ -104,7 +104,7 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 .ov-pays { font: 800 18px ui-sans-serif, system-ui; fill: var(--texte); }
 .ov-ville { font: 600 13px ui-sans-serif, system-ui; fill: var(--doux); }
 .voie-lib { color: var(--doux); font-size: 12.5px; font-weight: 600; }
-.pied { position: sticky; bottom: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 16px; padding: 12px 24px; background: color-mix(in srgb, var(--fond) 92%, transparent); backdrop-filter: blur(10px); border-top: 1px solid var(--bord); }
+.pied { position: sticky; bottom: 0; z-index: 3; display: grid; grid-template-columns: 1fr 240px 1fr; align-items: center; gap: 12px; padding: 12px 24px; background: color-mix(in srgb, var(--fond) 92%, transparent); backdrop-filter: blur(10px); border-top: 1px solid var(--bord); }
 .mini { position: absolute; right: 6px; top: 150px; bottom: 30px; width: 8px; border-radius: 8px; background: var(--surface-2); }
 .mini i { position: absolute; left: 0; right: 0; height: 2px; background: var(--doux); opacity: .5; }
 .mini b { position: absolute; left: -3px; right: -3px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 35%, transparent); border: 1px solid var(--accent); }
@@ -363,7 +363,8 @@ function entete() {
     + '<div class="gauche voie-lib">voie ↓ vers ' + esc(a.vers) + '</div>'
     + '<div class="milieu">' + (b ? '<span class="panneau">▲ ' + esc(b.vers) + '</span>' : '') + '</div>'
     + '<div class="droite voie-lib">' + (b ? 'voie ↑ vers ' + esc(b.vers) : '') + '</div>';
-  $('pied').innerHTML = '<span class="panneau">▼ ' + esc(a.vers) + '</span><span class="voie-lib">survolez une bretelle, ou le tronçon entre la sortie et l\'entrée</span>';
+  // même grille que l'en-tête : la direction du bas tombe au milieu des voies, comme celle du haut
+  $('pied').innerHTML = '<div></div><div class="milieu"><span class="panneau">▼ ' + esc(a.vers) + '</span></div><div class="droite voie-lib">survolez une bretelle, ou le tronçon entre la sortie et l\'entrée</div>';
   $('cAires').onchange = e => { etat.aires = e.target.checked; retenir(); dessiner(); };
 }
 function terminus(pos) {
