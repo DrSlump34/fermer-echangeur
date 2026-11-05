@@ -40,7 +40,10 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 #carte { width: 100%; height: 100%; display: block; }
 #monde { will-change: transform; }
 .voisin { fill: none; stroke: var(--voisin); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
-.voisin-c rect { fill: var(--cartouche); stroke: #fff; stroke-width: 1.5; }
+.voisin-c { cursor: pointer; }
+.voisin-c rect { fill: var(--cartouche); stroke: #fff; stroke-width: 1.5; transition: stroke-width var(--t); }
+.voisin-c:hover rect { stroke: var(--accent); stroke-width: 3; }
+.act.autre-route { border-color: var(--cartouche); }
 .voisin-c text { font: 800 11px ui-sans-serif, system-ui; fill: #fff; text-anchor: middle; dominant-baseline: central; }
 .ville circle { fill: var(--ville); }
 .ville text { font: 600 12px ui-sans-serif, system-ui; fill: var(--ville); paint-order: stroke; stroke: var(--fond); stroke-width: 3px; }
@@ -317,7 +320,7 @@ function dessiner() {
     const vis = g.chaussees[0].flat().map(m).filter(dedans);
     if (vis.length) {
       const q = X(vis[Math.floor(vis.length / 2)]), nom = r.replace(/^anneau-/, '⟳ ').replace(/-/g, ' '), w = 14 + nom.length * 7;
-      h += '<g class="voisin-c" transform="translate(' + q[0].toFixed(1) + ',' + q[1].toFixed(1) + ')"><rect x="' + (-w / 2) + '" y="-10" width="' + w + '" height="20" rx="5"/><text>' + esc(nom) + '</text></g>';
+      h += '<g class="voisin-c" data-route="' + esc(r) + '" transform="translate(' + q[0].toFixed(1) + ',' + q[1].toFixed(1) + ')"><title>Ouvrir ' + esc(nom) + '</title><rect x="' + (-w / 2) + '" y="-10" width="' + w + '" height="20" rx="5"/><text>' + esc(nom) + '</text></g>';
     }
   }
   for (const [nom, lon, lat, pop] of VILLES) {
@@ -501,9 +504,17 @@ function detail() {
   const q = pRang(r), [cls, txt] = pastille(q), kb = etat.D.chaussees.findIndex((c, i) => i !== etat.ref.k);
   $('detail').innerHTML = '<h3><span class="num ' + cls + '">' + esc(txt) + '</span>' + esc(q.nom) + '</h3>'
     + '<div class="sous">' + (KIND[q.kind] || '') + ' · km ' + (r.s / 1000).toFixed(1) + (q.nom_source ? ' · nom de l’échangeur d’après ' + (q.nom_source === 'lieu Waze' ? 'le lieu Waze' : esc(q.nom_source)) : '') + (q.source === 'connaissance locale' ? ' · nom arbitré (connaissance locale)' : '') + '</div>'
+    + (routeLiee(r.a) || routeLiee(r.b) ? (() => { const rl = routeLiee(r.a) || routeLiee(r.b); return '<p style="margin:0 0 12px"><a class="act autre-route" href="carte.html?r=' + encodeURIComponent(rl) + '" data-ouvrir="' + esc(rl) + '"><span class="num bif">' + esc(rl.replace(/^anneau-/, '⟳ ')) + '</span><span>Ouvrir l’' + esc(rl.replace(/^anneau-/, '')) + ' à la jonction</span></a></p>'; })() : '')
     + bloc(r.a, etat.ref.k) + (kb >= 0 ? bloc(r.b, kb) : '')
     + '<p class="aide">Survolez une bretelle sur la carte : un clic ouvre WME avec les segments sélectionnés. <kbd>↓</kbd> <kbd>↑</kbd> échangeur suivant ou précédent, <kbd>+</kbd> <kbd>−</kbd> ou <kbd>Ctrl</kbd> + molette pour le zoom.</p>';
 }
+
+$('detail').addEventListener('click', ev => {
+  const a = ev.target.closest('a[data-ouvrir]'); if (!a) return;
+  ev.preventDefault();
+  const r = etat.rangs[etat.actif], q = r && (routeLiee(r.a) ? r.a : r.b);
+  ouvrirAutre(a.dataset.ouvrir, ancreP(q));
+});
 
 /* ================= Carte d'ensemble ================= */
 let MINI = null;
@@ -566,7 +577,11 @@ $('monde').addEventListener('click', ev => {
     const p = etat.rangs[+g.dataset.i][g.dataset.c], l = g.dataset.k === 'oblig' && ev.shiftKey && p.f.deux ? p.f.deux : p.f[g.dataset.k];
     window.open(lien(l), '_blank', 'noopener'); return;
   }
-  const e = ev.target.closest('[data-i]'); if (e) allerS(etat.rangs[+e.dataset.i].s, true);
+  const v = ev.target.closest('.voisin-c'); if (v) { ouvrirAutre(v.dataset.route); return; }
+  const e = ev.target.closest('[data-i]'); if (!e) return;
+  const r = etat.rangs[+e.dataset.i], q = e.dataset.c ? r[e.dataset.c] : pRang(r);
+  if (e.classList.contains('bif') && +e.dataset.i === etat.actif && routeLiee(q)) { ouvrirAutre(routeLiee(q), ancreP(q)); return; }
+  allerS(r.s, true);
 });
 document.addEventListener('keydown', ev => {
   if (!etat.rangs.length || /input|select|textarea/i.test(document.activeElement.tagName)) return;
@@ -581,7 +596,17 @@ addEventListener('resize', () => { if (etat.ref) { dessiner(); dessinerMini(); }
 
 /* ================= Chargement ================= */
 async function chargerD(route) { return fetch('d/' + encodeURIComponent(route) + '.json', { cache: 'no-store' }).then(x => x.json()); }
-async function charger(route) {
+// position géographique (lon, lat) d'un point de la carte, et de la caméra
+const geoDe = q => [q[0] / (111320 * CX) + LON0, -q[1] / 110570 + LAT0];
+const ancreP = p => { for (const k of ['sortie', 'entree', 'oblig', 'tout', 'deux']) if (p && p.f[k]) return p.f[k].c; return null; };
+// autoroute rejointe par une bifurcation, si la carte la connaît
+const routeLiee = p => p && p.kind === 'bifurcation' && p.lien && p.lien.route && RESEAU[p.lien.route] ? p.lien.route : null;
+function ouvrirAutre(route, cible) {
+  if (!route || route === etat.route || !RESEAU[route]) return;
+  bulle.classList.remove('vu');
+  charger(route, cible || (etat.ref ? geoDe((p => [p.x, p.y])(aS(etat.ref, etat.sCam ?? cibleS()))) : null));
+}
+async function charger(route, cible) {
   etat.route = route; etat.sCam = null; etat.actif = -1;
   FE_VUES.route(route);
   $('choix').value = route;
@@ -599,7 +624,9 @@ async function charger(route) {
   etat.K = $('scene').clientHeight / (memo > 0 ? memo : 7000);
   $('niveau').value = niveauDeK(etat.K);
   dessiner(); dessinerMini(); detail();
-  scrollTo({ top: 0, behavior: 'instant' });
+  // venu d'une autre autoroute : on arrive à l'endroit le plus proche de là où l'on était (ou de la jonction)
+  if (cible) { const s = projeter(etat.ref, m(cible)); etat.sCam = s; allerS(s, false); }
+  else scrollTo({ top: 0, behavior: 'instant' });
 }
 $('choix').onchange = e => charger(e.target.value);
 $('aires').onchange = e => { etat.aires = e.target.checked; const s = cibleS(); etat.rangs = construireRangs(); etat.actif = -1; dessiner(); allerS(s, false); };
