@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0b1220">
+<title>Fermer un échangeur · Waze France</title>
+<style>
+/* ===== Thème ===================================================================== */
+:root {
+  --fond: #f4f6fa; --surface: #ffffff; --surface-2: #eef1f6; --bord: #dde3ec; --texte: #0e1726; --doux: #5b6779;
+  --accent: #2563eb; --accent-2: #60a5fa; --rouge: #e11d2e; --rouge-doux: #fde8ea; --vert: #10b981; --ambre: #f59e0b;
+  --panneau: #1f4fbf; --cartouche: #d91c2a; --chaussee: #9aa5b5; --chaussee-fort: #475569; --ombre: 0 1px 2px rgb(15 23 42 / .06), 0 8px 24px rgb(15 23 42 / .08);
+  --r: 14px; --t: 160ms cubic-bezier(.2,.7,.2,1);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --fond: #0b1220; --surface: #111a2b; --surface-2: #162236; --bord: #23324a; --texte: #e6ecf5; --doux: #93a1b8;
+    --accent: #60a5fa; --accent-2: #93c5fd; --rouge-doux: #3a1218; --chaussee: #46566e; --chaussee-fort: #9fb0c8; --ombre: 0 1px 2px rgb(0 0 0 / .3), 0 12px 32px rgb(0 0 0 / .35); }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body { margin: 0; font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: var(--texte); background: var(--fond); }
+button, input, select { font: inherit; color: inherit; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px solid var(--bord); border-bottom-width: 2px; border-radius: 6px; background: var(--surface); color: var(--doux); }
+
+/* ===== Signalisation : cartouche rouge (numéro d'autoroute), panneau bleu (sens) ===== */
+.cartouche { display: inline-grid; place-items: center; min-width: 46px; height: 30px; padding: 0 9px; border-radius: 7px; background: var(--cartouche); color: #fff; font-weight: 800; letter-spacing: .02em; box-shadow: inset 0 0 0 2px rgb(255 255 255 / .9), 0 0 0 1px var(--cartouche); }
+.cartouche.anneau { background: #0f766e; box-shadow: inset 0 0 0 2px rgb(255 255 255 / .9), 0 0 0 1px #0f766e; }
+.panneau { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px; background: var(--panneau); color: #fff; font-weight: 700; box-shadow: inset 0 0 0 2px rgb(255 255 255 / .85), 0 0 0 1px var(--panneau); white-space: nowrap; }
+.num { display: inline-grid; place-items: center; min-width: 34px; height: 26px; padding: 0 6px; border-radius: 6px; background: #fff; color: #111; font-weight: 800; font-size: 13px; box-shadow: 0 0 0 2px #111; }
+.num.aire { background: var(--vert); color: #fff; box-shadow: none; }
+.num.bif { background: var(--cartouche); color: #fff; box-shadow: none; font-size: 11px; }
+.num.autre { background: var(--surface-2); color: var(--doux); box-shadow: 0 0 0 1px var(--bord); font-size: 11px; }
+
+/* ===== Mise en page bureau ========================================================= */
+.app { display: grid; grid-template-columns: 300px minmax(0, 1fr) 360px; grid-template-rows: auto 1fr; height: 100dvh; }
+.barre { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-bottom: 1px solid var(--bord); background: color-mix(in srgb, var(--surface) 82%, transparent); backdrop-filter: saturate(1.4) blur(14px); position: sticky; top: 0; z-index: 5; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: -.01em; }
+.logo svg { width: 28px; height: 28px; }
+.recherche { margin-left: auto; display: flex; align-items: center; gap: 10px; min-width: 280px; padding: 8px 12px; border: 1px solid var(--bord); border-radius: 11px; background: var(--surface); color: var(--doux); cursor: pointer; transition: border-color var(--t); }
+.recherche:hover { border-color: var(--accent); }
+.cote { border-right: 1px solid var(--bord); overflow: auto; background: var(--surface); }
+.cote h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--doux); margin: 18px 16px 8px; }
+.filtre { position: sticky; top: 0; padding: 12px; background: var(--surface); z-index: 1; }
+.filtre input { width: 100%; padding: 9px 12px; border: 1px solid var(--bord); border-radius: 10px; background: var(--surface-2); outline: none; }
+.filtre input:focus { border-color: var(--accent); }
+.routes { list-style: none; margin: 0; padding: 0 8px 16px; }
+.routes button { width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 8px; border: 0; border-radius: 10px; background: none; text-align: left; cursor: pointer; transition: background var(--t); }
+.routes button:hover { background: var(--surface-2); }
+.routes button[aria-current=true] { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.routes .cartouche { min-width: 52px; height: 26px; font-size: 13px; }
+.routes small { color: var(--doux); display: block; line-height: 1.25; }
+
+/* ===== L'axe ======================================================================= */
+.centre { overflow: auto; scroll-behavior: smooth; position: relative; }
+.entete { position: sticky; top: 0; z-index: 3; display: grid; grid-template-columns: 1fr 240px 1fr; align-items: end; gap: 12px; padding: 16px 24px 12px; background: color-mix(in srgb, var(--fond) 92%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--bord); margin-bottom: 8px; }
+.entete .titre { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+.entete .titre h1 { margin: 0; font-size: 22px; letter-spacing: -.02em; }
+.entete .titre .meta { color: var(--doux); font-size: 13px; }
+.entete .gauche { justify-self: end; } .entete .droite { justify-self: start; }
+.entete .milieu { text-align: center; color: var(--doux); font-size: 12px; }
+.options { display: flex; gap: 8px; margin-left: auto; }
+.puce { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--bord); border-radius: 999px; background: var(--surface); cursor: pointer; font-size: 13px; user-select: none; }
+.puce input { accent-color: var(--accent); }
+.axe { position: relative; padding: 0 24px 24px; }
+.ligne { position: relative; display: grid; grid-template-columns: 1fr 240px 1fr; align-items: center; min-height: 96px; gap: 12px; border-radius: var(--r); transition: background var(--t); scroll-margin-top: 150px; }
+.ligne:hover { background: color-mix(in srgb, var(--surface) 55%, transparent); }
+.ligne[aria-selected=true] { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.ligne.aire-l { min-height: 56px; }
+.etiq { display: flex; flex-direction: column; gap: 2px; padding: 8px 4px; cursor: pointer; }
+.etiq.g { align-items: flex-end; text-align: right; } .etiq.d { align-items: flex-start; }
+.etiq .nom { font-weight: 700; font-size: 15px; }
+.etiq .dest { color: var(--doux); font-size: 12.5px; max-width: 34ch; }
+.schema { width: 240px; height: 100%; min-height: 96px; display: block; overflow: visible; }
+.schema .voie { stroke: var(--chaussee); stroke-width: 10; stroke-linecap: butt; }
+.schema .voie-trait { stroke: var(--surface); stroke-width: 1.5; stroke-dasharray: 6 8; }
+.schema .geste { fill: none; stroke: var(--chaussee-fort); stroke-width: 7; stroke-linecap: round; cursor: pointer; transition: stroke var(--t), filter var(--t), stroke-width var(--t); }
+.schema .geste.tronc { stroke: transparent; stroke-width: 22; }
+.schema .geste.absent { stroke: var(--bord); stroke-dasharray: 2 6; cursor: not-allowed; }
+.schema .geste:not(.absent):hover, .schema .geste.vu { stroke: var(--rouge); stroke-width: 9; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--rouge) 60%, transparent)); }
+.schema .geste.tronc:not(.absent):hover, .schema .geste.tronc.vu { stroke: color-mix(in srgb, var(--ambre) 80%, transparent); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--ambre) 70%, transparent)); }
+.schema .fleche { fill: var(--chaussee-fort); opacity: .55; }
+.schema .pastille { fill: var(--surface); stroke: var(--texte); stroke-width: 2.5; }
+.schema text { font: 800 11px ui-sans-serif, system-ui; fill: var(--texte); }
+.ligne.terminus { min-height: 64px; }
+.term { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px dashed var(--bord); border-radius: 12px; background: var(--surface); color: var(--texte); font-weight: 650; cursor: pointer; transition: border-color var(--t), transform var(--t); }
+.term.g { justify-self: end; } .term.d { justify-self: start; }
+.term:hover { border-color: var(--accent); transform: translateY(-1px); }
+.term.sans { cursor: default; } .term.sans:hover { border-color: var(--bord); transform: none; }
+.term-go { color: var(--accent); font-size: 20px; line-height: 1; }
+.ov-bloc { max-width: 820px; margin: 24px auto; }
+.ov { width: 100%; height: auto; display: block; }
+.ov-montagne { fill: color-mix(in srgb, var(--doux) 18%, transparent); stroke: var(--bord); }
+.ov-eau { fill: none; stroke: color-mix(in srgb, var(--accent) 45%, transparent); stroke-width: 6; stroke-linecap: round; }
+.ov-voie rect { fill: var(--chaussee); transition: fill var(--t), filter var(--t); cursor: pointer; }
+.ov-voie .ov-fleche { fill: none; stroke: var(--surface); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.ov-voie.vu rect, .ov-voie:hover:not(.absent) rect { fill: var(--rouge); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--rouge) 60%, transparent)); }
+.ov-voie.absent rect { fill: var(--bord); cursor: not-allowed; }
+.ov-portail { stroke: var(--texte); stroke-width: 5; stroke-linecap: round; }
+.ov-pile { stroke: var(--doux); stroke-width: 6; stroke-linecap: round; }
+.ov-frontiere { stroke: var(--ambre); stroke-width: 2; stroke-dasharray: 6 6; }
+.ov-pays { font: 800 18px ui-sans-serif, system-ui; fill: var(--texte); }
+.ov-ville { font: 600 13px ui-sans-serif, system-ui; fill: var(--doux); }
+.voie-lib { color: var(--doux); font-size: 12.5px; font-weight: 600; }
+.pied { position: sticky; bottom: 0; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 16px; padding: 12px 24px; background: color-mix(in srgb, var(--fond) 92%, transparent); backdrop-filter: blur(10px); border-top: 1px solid var(--bord); }
+.mini { position: absolute; right: 6px; top: 150px; bottom: 30px; width: 8px; border-radius: 8px; background: var(--surface-2); }
+.mini i { position: absolute; left: 0; right: 0; height: 2px; background: var(--doux); opacity: .5; }
+.mini b { position: absolute; left: -3px; right: -3px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 35%, transparent); border: 1px solid var(--accent); }
+
+/* ===== Panneau de détail =========================================================== */
+.detail { border-left: 1px solid var(--bord); background: var(--surface); overflow: auto; padding: 18px; }
+.detail .vide { color: var(--doux); margin-top: 40px; text-align: center; }
+.detail h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 4px; font-size: 19px; }
+.detail .sous { color: var(--doux); font-size: 13px; margin-bottom: 14px; }
+.bloc { border: 1px solid var(--bord); border-radius: var(--r); padding: 12px; margin-bottom: 12px; background: var(--surface); box-shadow: var(--ombre); }
+.bloc .panneau { margin-bottom: 10px; font-size: 13px; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.act { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 9px 11px; border: 1px solid var(--bord); border-radius: 12px; background: var(--surface-2); color: var(--texte); text-decoration: none; font-weight: 650; font-size: 14px; line-height: 1.15; transition: transform var(--t), border-color var(--t), background var(--t); }
+.act:hover { border-color: var(--rouge); background: var(--rouge-doux); transform: translateY(-1px); }
+.act:active { transform: scale(.98); }
+.act.large { grid-column: 1 / -1; }
+.act.off { opacity: .38; pointer-events: none; }
+.act .k { margin-left: auto; }
+.act svg { flex: none; width: 24px; height: 24px; }
+.detail, .detail * { min-width: 0; }
+.detail .act span, .g-act span { flex: 1; overflow-wrap: anywhere; }
+.detail .act .k, .detail .act svg { flex: none; }
+.detail .panneau { white-space: normal; max-width: 100%; }
+.detail .actions { grid-template-columns: 1fr; }
+.detail .term { width: 100%; justify-self: stretch; white-space: normal; text-align: left; }
+.detail .term span:nth-child(2) { flex: 1; overflow-wrap: anywhere; }
+.detail h3 { flex-wrap: wrap; overflow-wrap: anywhere; }
+.lien-ids { margin-top: 8px; border: 0; background: none; color: var(--doux); text-decoration: underline; cursor: pointer; font-size: 13px; padding: 4px 0; }
+.aide { color: var(--doux); font-size: 12.5px; line-height: 1.6; }
+.aide p { margin: 6px 0; }
+
+/* ===== Bulle et palette ============================================================ */
+.bulle { position: fixed; z-index: 20; pointer-events: none; padding: 8px 11px; border-radius: 10px; background: #0b1220; color: #fff; font-size: 13px; font-weight: 600; box-shadow: var(--ombre); opacity: 0; transform: translateY(4px); transition: opacity 90ms, transform 90ms; max-width: 280px; }
+.bulle.vu { opacity: 1; transform: none; }
+.bulle small { display: block; color: #a9b6cc; font-weight: 500; }
+.palette { position: fixed; inset: 0; z-index: 30; display: none; place-items: start center; padding-top: 12vh; background: rgb(2 6 23 / .45); backdrop-filter: blur(3px); }
+.palette.vu { display: grid; }
+.palette .boite { width: min(640px, 92vw); border-radius: 16px; background: var(--surface); box-shadow: 0 24px 64px rgb(0 0 0 / .35); overflow: hidden; border: 1px solid var(--bord); }
+.palette input { width: 100%; padding: 16px 18px; border: 0; border-bottom: 1px solid var(--bord); background: none; font-size: 17px; outline: none; }
+.palette ul { list-style: none; margin: 0; padding: 6px; max-height: 52vh; overflow: auto; }
+.palette li { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; cursor: pointer; }
+.palette li[aria-selected=true] { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.palette li small { color: var(--doux); margin-left: auto; }
+.toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom)); transform: translateX(-50%) translateY(12px); padding: 10px 16px; border-radius: 12px; background: #0b1220; color: #fff; font-size: 14px; opacity: 0; transition: opacity var(--t), transform var(--t); z-index: 40; pointer-events: none; }
+.toast.vu { opacity: 1; transform: translateX(-50%); }
+
+/* ===== Téléphone : une seule colonne, un seul sens, des gestes gros comme le pouce ===== */
+.mobile { display: none; }
+@media (max-width: 900px) {
+  .app { display: none; } .mobile { display: block; }
+  .m-haut { position: sticky; top: 0; z-index: 5; padding: max(10px, env(safe-area-inset-top)) 12px 10px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(14px); border-bottom: 1px solid var(--bord); }
+  .m-ligne1 { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .m-route { flex: 1; display: flex; align-items: center; gap: 10px; padding: 8px 10px; min-height: 48px; border: 1px solid var(--bord); border-radius: 12px; background: var(--surface); cursor: pointer; text-align: left; }
+  .m-route b { font-size: 16px; } .m-route small { color: var(--doux); display: block; }
+  .m-sens { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; border-radius: 14px; background: var(--surface-2); }
+  .m-sens button { min-height: 50px; border: 0; border-radius: 11px; background: none; font-weight: 750; font-size: 16px; color: var(--doux); }
+  .m-sens button[aria-pressed=true] { background: var(--panneau); color: #fff; box-shadow: inset 0 0 0 2px rgb(255 255 255 / .85); }
+  .m-q { width: 100%; margin-top: 8px; min-height: 46px; padding: 0 14px; border: 1px solid var(--bord); border-radius: 12px; background: var(--surface); font-size: 16px; outline: none; }
+  .m-liste { padding: 10px 10px calc(30px + env(safe-area-inset-bottom)); }
+  .m-carte { border: 1px solid var(--bord); border-radius: 16px; padding: 12px; margin-bottom: 10px; background: var(--surface); box-shadow: var(--ombre); }
+  .m-carte .t { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .m-carte .t .nom { font-weight: 750; font-size: 17px; line-height: 1.2; }
+  .m-carte .t small { color: var(--doux); display: block; font-size: 13px; }
+  .m-carte .act { min-height: 58px; font-size: 15px; }
+  .m-rang { width: 100%; display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 12px; margin-bottom: 8px; border: 1px solid var(--bord); border-radius: 16px; background: var(--surface); text-align: left; cursor: pointer; box-shadow: var(--ombre); }
+  .m-rang:active { transform: scale(.99); background: var(--surface-2); }
+  .m-txt { flex: 1; min-width: 0; } .m-txt b { display: block; font-size: 17px; line-height: 1.2; }
+  .m-txt small { display: block; color: var(--doux); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .m-n { min-width: 26px; height: 26px; display: grid; place-items: center; border-radius: 13px; background: var(--rouge-doux); color: var(--rouge); font-weight: 800; font-size: 13px; }
+  .m-chev { color: var(--doux); font-size: 26px; line-height: 1; }
+  .g-tete { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; } .g-tete b { display: block; font-size: 19px; } .g-tete small { color: var(--doux); }
+  .g-sens { margin-bottom: 12px; }
+  .g-gestes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .g-act { display: flex; flex-direction: column; justify-content: center; gap: 8px; min-height: 96px; padding: 14px; border: 1px solid var(--bord); border-radius: 18px; background: var(--surface-2); color: var(--texte); text-decoration: none; font-weight: 750; font-size: 16px; line-height: 1.2; }
+  .g-act svg { width: 32px; height: 32px; } .g-act.large { grid-column: 1 / -1; flex-direction: row; align-items: center; min-height: 72px; }
+  .g-act:active { transform: scale(.98); background: var(--rouge-doux); }
+  .g-act.off { opacity: .35; pointer-events: none; } .g-act.tout { border-color: var(--rouge); }
+  .feuille { position: fixed; inset: 0; z-index: 30; display: none; background: rgb(2 6 23 / .45); }
+  .feuille.vu { display: block; }
+  .feuille .boite { position: absolute; left: 0; right: 0; bottom: 0; max-height: 82dvh; overflow: auto; border-radius: 20px 20px 0 0; background: var(--surface); padding: 10px 12px calc(16px + env(safe-area-inset-bottom)); }
+  .feuille .poignee { width: 44px; height: 5px; border-radius: 5px; background: var(--bord); margin: 4px auto 10px; }
+  .feuille input { width: 100%; min-height: 48px; padding: 0 14px; border: 1px solid var(--bord); border-radius: 12px; background: var(--surface-2); font-size: 16px; margin-bottom: 8px; outline: none; }
+  .feuille .routes button { min-height: 52px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ================================ BUREAU ================================ -->
+<div class="app" id="app">
+  <header class="barre">
+    <div class="logo">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="26" height="26" rx="7" fill="#d91c2a"/><path d="M11 23V9M21 23V9" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><path d="M16 11v3M16 18v3" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+      Fermer un échangeur <span style="color:var(--doux);font-weight:500">· Waze France</span>
+    </div>
+    <nav class="vues" id="vues" aria-label="Affichage"></nav>
+    <button class="recherche" id="ouvrirPalette" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg> Autoroute, échangeur, ville… <kbd style="margin-left:auto">Ctrl K</kbd></button>
+  </header>
+  <nav class="cote" aria-label="Autoroutes">
+    <div class="filtre"><input id="filtre" type="search" placeholder="Filtrer : A9, Lyon, périphérique…" autocomplete="off"></div>
+    <h2>Autoroutes</h2><ul class="routes" id="listeA"></ul>
+    <h2>Rocades et périphériques</h2><ul class="routes" id="listeR"></ul>
+    <h2>Tunnels, ponts, viaducs</h2><ul class="routes" id="listeO"></ul>
+  </nav>
+  <main class="centre" id="centre">
+    <div class="entete" id="entete"></div>
+    <div class="axe" id="axe" role="listbox" aria-label="Échangeurs"></div>
+    <div class="pied" id="pied"></div>
+    <div class="mini" id="mini" aria-hidden="true"></div>
+  </main>
+  <aside class="detail" id="detail" aria-live="polite"></aside>
+</div>
+
+<!-- ================================ TÉLÉPHONE ================================ -->
+<div class="mobile" id="mobile">
+  <div class="m-haut">
+    <div class="m-ligne1"><button class="m-route" id="mRoute" type="button"></button></div>
+    <div class="m-sens" id="mSens" role="group" aria-label="Sens de circulation"></div>
+    <input class="m-q" id="mQ" type="search" inputmode="search" placeholder="N° ou nom de l'échangeur" autocomplete="off">
+  </div>
+  <div class="m-liste" id="mListe"></div>
+  <div class="feuille" id="gestes"><div class="boite" id="gBoite"></div></div>
+  <div class="feuille" id="feuille"><div class="boite"><div class="poignee"></div><input id="fQ" type="search" placeholder="Chercher une autoroute" autocomplete="off"><ul class="routes" id="fListe"></ul></div></div>
+</div>
+
+<div class="palette" id="palette" role="dialog" aria-modal="true" aria-label="Recherche"><div class="boite"><input id="pQ" placeholder="Aller à une autoroute ou un échangeur…" autocomplete="off"><ul id="pListe" role="listbox"></ul></div></div>
+<div class="bulle" id="bulle"></div>
+<div class="toast" id="toast"></div>
+
+<script src="vues.js"></script>
+<script>
+const DONNEES = {"date":"04/11/2026","liste":[{"route":"A1","titre":"A1","anneau":false,"sens":["Paris","Lille"]},{"route":"A2","titre":"A2","anneau":false,"sens":["Paris","Belgique"]},{"route":"A3","titre":"A3","anneau":false,"sens":["Paris","Lille"]},{"route":"A4","titre":"A4","anneau":false,"sens":["Strasbourg","Paris"]},{"route":"A5","titre":"A5","anneau":false,"sens":["Langres","Paris"]},{"route":"A5a","titre":"A5a","anneau":false,"sens":["Corbeil-Essonnes","A5b"]},{"route":"A5b","titre":"A5b","anneau":false,"sens":["Melun","Combs-la-Ville"]},{"route":"A6","titre":"A6","anneau":false,"sens":["Lyon","Paris"]},{"route":"A6a","titre":"A6a","anneau":false,"sens":["Paris","Lyon"]},{"route":"A6b","titre":"A6b","anneau":false,"sens":["A6a","A10"]},{"route":"A7","titre":"A7","anneau":false,"sens":["Lyon","Marseille"]},{"route":"A8","titre":"A8","anneau":false,"sens":["Aix","Italie"]},{"route":"A9","titre":"A9","anneau":false,"sens":["Lyon","Barcelone"]},{"route":"A10","titre":"A10","anneau":false,"sens":["Bordeaux","Paris"]},{"route":"A11","titre":"A11","anneau":false,"sens":["Paris","Nantes"]},{"route":"A12","titre":"A12","anneau":false,"sens":["Trappes","Paris"]},{"route":"A13","titre":"A13","anneau":false,"sens":["Paris","Caen"]},{"route":"A14","titre":"A14","anneau":false,"sens":["Rouen","Paris"]},{"route":"A15","titre":"A15","anneau":false,"sens":["Cergy-Pontoise","Paris"]},{"route":"A16","titre":"A16","anneau":false,"sens":["Belgique","Paris"]},{"route":"A19","titre":"A19","anneau":false,"sens":["Orléans","Sens"]},{"route":"A20","titre":"A20","anneau":false,"sens":["Toulouse","Vierzon"]},{"route":"A21","titre":"A21","anneau":false,"sens":["Valenciennes","Béthune"]},{"route":"A22","titre":"A22","anneau":false,"sens":["Lille (sud)","Lille (nord)"]},{"route":"A23","titre":"A23","anneau":false,"sens":["Valenciennes","Lille"]},{"route":"A25","titre":"A25","anneau":false,"sens":["Dunkerque","Lille"]},{"route":"A26","titre":"A26","anneau":false,"sens":["Troyes","Calais"]},{"route":"A27","titre":"A27","anneau":false,"sens":["Tournai","Lille"]},{"route":"A28","titre":"A28","anneau":false,"sens":["Tours","Abbeville"]},{"route":"A29","titre":"A29","anneau":false,"sens":["Le Havre","Saint-Quentin"]},{"route":"A30","titre":"A30","anneau":false,"sens":["Metz","Belgique"]},{"route":"A31","titre":"A31","anneau":false,"sens":["Luxembourg","Beaune"]},{"route":"A33","titre":"A33","anneau":false,"sens":["Strasbourg","Nancy"]},{"route":"A34","titre":"A34","anneau":false,"sens":["Reims","Belgique"]},{"route":"A35","titre":"A35","anneau":false,"sens":["Bâle","Strasbourg"]},{"route":"A36","titre":"A36","anneau":false,"sens":["Beaune","Mulhouse"]},{"route":"A38","titre":"A38","anneau":false,"sens":["Dijon","A6"]},{"route":"A39","titre":"A39","anneau":false,"sens":["Dijon","Bourg-en-Bresse"]},{"route":"A40","titre":"A40","anneau":false,"sens":["Mâcon","Chamonix"]},{"route":"A41","titre":"A41","anneau":false,"sens":["Grenoble","Genève"]},{"route":"A42","titre":"A42","anneau":false,"sens":["Villeurbanne","Bourg-en-Bresse"]},{"route":"A43","titre":"A43","anneau":false,"sens":["Italie","Lyon"]},{"route":"A46","titre":"A46","anneau":false,"sens":["Villefranche-sur-Saône","Saint-Priest"]},{"route":"A47","titre":"A47","anneau":false,"sens":["Saint-Chamond","A46"]},{"route":"A48","titre":"A48","anneau":false,"sens":["Grenoble","Lyon"]},{"route":"A49","titre":"A49","anneau":false,"sens":["Valence","Grenoble"]},{"route":"A50","titre":"A50","anneau":false,"sens":["Marseille","Toulon"]},{"route":"A51","titre":"A51","anneau":false,"sens":["Grenoble","Marseille"]},{"route":"A52","titre":"A52","anneau":false,"sens":["A50","A8"]},{"route":"A54","titre":"A54","anneau":false,"sens":["Salon-de-Provence","Nîmes"]},{"route":"A55","titre":"A55","anneau":false,"sens":["Martigues","A557"]},{"route":"A57","titre":"A57","anneau":false,"sens":["Fréjus","Toulon"]},{"route":"A61","titre":"A61","anneau":false,"sens":["Narbonne","Toulouse"]},{"route":"A62","titre":"A62","anneau":false,"sens":["Bordeaux","Toulouse"]},{"route":"A63","titre":"A63","anneau":false,"sens":["Bordeaux","Espagne"]},{"route":"A64","titre":"A64","anneau":false,"sens":["Toulouse","Bayonne"]},{"route":"A65","titre":"A65","anneau":false,"sens":["Bordeaux","Pau"]},{"route":"A66","titre":"A66","anneau":false,"sens":["Andorre","Toulouse"]},{"route":"A68","titre":"A68","anneau":false,"sens":["Toulouse","Albi"]},{"route":"A69","titre":"A69","anneau":false,"sens":["Toulouse","Castres"]},{"route":"A71","titre":"A71","anneau":false,"sens":["Clermont-Ferrand","Orléans"]},{"route":"A72","titre":"A72","anneau":false,"sens":["Saint-Étienne","Clermont-Ferrand"]},{"route":"A75","titre":"A75","anneau":false,"sens":["Clermont-Ferrand","Béziers"]},{"route":"A77","titre":"A77","anneau":false,"sens":["Paris","Nevers"]},{"route":"A79","titre":"A79","anneau":false,"sens":["Montluçon","Lyon"]},{"route":"A81","titre":"A81","anneau":false,"sens":["Rennes","Le Mans"]},{"route":"A83","titre":"A83","anneau":false,"sens":["Nantes","Niort"]},{"route":"A84","titre":"A84","anneau":false,"sens":["Rennes","Caen"]},{"route":"A85","titre":"A85","anneau":false,"sens":["Vierzon","Angers"]},{"route":"A87","titre":"A87","anneau":false,"sens":["La Roche-sur-Yon","Angers"]},{"route":"A88","titre":"A88","anneau":false,"sens":["Alençon","Caen"]},{"route":"A89","titre":"A89","anneau":false,"sens":["Bordeaux","Lyon"]},{"route":"A104","titre":"A104","anneau":false,"sens":["A4","A3"]},{"route":"A106","titre":"A106","anneau":false,"sens":["Paris","A6b"]},{"route":"A115","titre":"A115","anneau":false,"sens":["A15","Taverny"]},{"route":"A126","titre":"A126","anneau":false,"sens":["A10","A6"]},{"route":"A131","titre":"A131","anneau":false,"sens":["A13","Le Havre"]},{"route":"A132","titre":"A132","anneau":false,"sens":["Le Havre","A13"]},{"route":"A140","titre":"A140","anneau":false,"sens":["Meaux (nord)","Meaux (sud)"]},{"route":"A150","titre":"A150","anneau":false,"sens":["Rouen","Yvetot"]},{"route":"A151","titre":"A151","anneau":false,"sens":["A150","A29"]},{"route":"A154","titre":"A154","anneau":false,"sens":["A13","Évreux"]},{"route":"A211","titre":"A211","anneau":false,"sens":["A21","Lens"]},{"route":"A216","titre":"A216","anneau":false,"sens":["Calais","A26"]},{"route":"A304","titre":"A304","anneau":false,"sens":["Charleville-Mézières","A34"]},{"route":"A311","titre":"A311","anneau":false,"sens":["A31","Dijon"]},{"route":"A314","titre":"A314","anneau":false,"sens":["A4","A315"]},{"route":"A315","titre":"A315","anneau":false,"sens":["A4"]},{"route":"A320","titre":"A320","anneau":false,"sens":["Sarrebruck","Metz"]},{"route":"A330","titre":"A330","anneau":false,"sens":["Nancy (nord)","Nancy (sud)"]},{"route":"A344","titre":"A344","anneau":false,"sens":["Paris","Strasbourg"]},{"route":"A352","titre":"A352","anneau":false,"sens":["A35","Strasbourg"]},{"route":"A355","titre":"A355","anneau":false,"sens":["A35","A4"]},{"route":"A391","titre":"A391","anneau":false,"sens":["Dole","A39"]},{"route":"A404","titre":"A404","anneau":false,"sens":["A40","Oyonnax"]},{"route":"A406","titre":"A406","anneau":false,"sens":["A40","A6"]},{"route":"A410","titre":"A410","anneau":false,"sens":["A41","A40"]},{"route":"A411","titre":"A411","anneau":false,"sens":["Annemasse","A40"]},{"route":"A430","titre":"A430","anneau":false,"sens":["Annecy","A43"]},{"route":"A432","titre":"A432","anneau":false,"sens":["A46","A43"]},{"route":"A450","titre":"A450","anneau":false,"sens":["A7","Brignais"]},{"route":"A480","titre":"A480","anneau":false,"sens":["A51","A48"]},{"route":"A500","titre":"A500","anneau":false,"sens":["Nice (sud)","Nice (nord)"]},{"route":"A501","titre":"A501","anneau":false,"sens":["A52","A50"]},{"route":"A507","titre":"A507","anneau":false,"sens":["A7","A50"]},{"route":"A570","titre":"A570","anneau":false,"sens":["Toulon","A57"]},{"route":"A621","titre":"A621","anneau":false,"sens":["Aéroport Blagnac","A620"]},{"route":"A624","titre":"A624","anneau":false,"sens":["Toulouse","A620"]},{"route":"A660","titre":"A660","anneau":false,"sens":["A63","Gujan-Mestras"]},{"route":"A709","titre":"A709","anneau":false,"sens":["Lyon","Espagne"]},{"route":"A710","titre":"A710","anneau":false,"sens":["A71","A89"]},{"route":"A711","titre":"A711","anneau":false,"sens":["A75","A89"]},{"route":"A714","titre":"A714","anneau":false,"sens":["Montluçon","A71"]},{"route":"A719","titre":"A719","anneau":false,"sens":["Vichy","A71"]},{"route":"A750","titre":"A750","anneau":false,"sens":["A75","Montpellier"]},{"route":"A811","titre":"A811","anneau":false,"sens":["A11","Nantes"]},{"route":"A813","titre":"A813","anneau":false,"sens":["Caen","A13"]},{"route":"A837","titre":"A837","anneau":false,"sens":["Rochefort","A10"]},{"route":"anneau-A86","titre":"A86 (Île-de-France)","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-BP-Paris","titre":"Boulevard périphérique de Paris","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Lyon","titre":"Périphérique de Lyon (BPNL, Laurent Bonnevay)","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Nantes","titre":"Périphérique de Nantes","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Toulouse","titre":"Périphérique de Toulouse","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Tours","titre":"Boulevard périphérique de Tours","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Rocade-Bordeaux","titre":"Rocade de Bordeaux","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Rocade-Rennes","titre":"Rocade de Rennes","anneau":true,"sens":["Intérieur","Extérieur"]}],"ouvrages":[{"id":"mont-blanc","titre":"Tunnel du Mont-Blanc","route":"N205","km":7.6},{"id":"frejus","titre":"Tunnel routier du Fréjus","route":"A43","km":6.7},{"id":"somport","titre":"Tunnel du Somport","route":"N134","km":2.7},{"id":"puymorens","titre":"Tunnel du Puymorens","route":"N20","km":2.5},{"id":"millau","titre":"Viaduc de Millau","route":"A75","km":2.8},{"id":"normandie","titre":"Pont de Normandie","route":"A29","km":6.9},{"id":"tancarville","titre":"Pont de Tancarville","route":"D982","km":1.5},{"id":"saint-nazaire","titre":"Pont de Saint-Nazaire","route":"D213","km":4.1},{"id":"prado-carenage","titre":"Tunnel Prado-Carénage (Marseille)","route":"A50","km":2.5},{"id":"toulon","titre":"Tunnel de Toulon","route":"A50/A57","km":3.0},{"id":"vieux-port","titre":"Tunnel du Vieux-Port (Marseille)","route":"A55/A50","km":0.7}]};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const lien = l => 'https://www.waze.com/fr/editor?env=row&lat=' + l.c[1] + '&lon=' + l.c[0] + '&zoomLevel=' + l.z + '&segments=' + l.ids.join(',');
+const ICO = {
+  interdit: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#e11d2e"/><rect x="5" y="9.6" width="14" height="4.8" rx="1" fill="#fff"/></svg>',
+  oblig: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#1f4fbf"/><path d="M7.5 16.5 16 8M10.5 8H16v5.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+const GESTES = [
+  { k: 'entree', txt: 'Entrée interdite', ico: ICO.interdit, touche: '1' },
+  { k: 'sortie', txt: 'Sortie interdite', ico: ICO.interdit, touche: '2' },
+  { k: 'oblig', txt: 'Sortie obligatoire', ico: ICO.oblig, touche: '3' },
+  { k: 'deux', txt: 'Entrée interdite + sortie obligatoire', ico: ICO.interdit + ICO.oblig, touche: '4', large: true },
+];
+function texteGeste(k, p) {
+  if (p.kind === 'bifurcation') return { sortie: 'Bifurcation fermée', oblig: 'Bifurcation obligatoire', entree: 'Entrée interdite', deux: 'Entrée interdite + bifurcation obligatoire' }[k];
+  if (p.kind === 'aire') return { sortie: 'Accès à l\'aire fermé', oblig: 'Passage par l\'aire obligatoire', entree: 'Sortie de l\'aire fermée', deux: 'Aire : sortie fermée + passage obligatoire' }[k];
+  return GESTES.find(g => g.k === k).txt;
+}
+function toast(t) { const e = $('toast'); e.textContent = t; e.classList.add('vu'); clearTimeout(toast.h); toast.h = setTimeout(() => e.classList.remove('vu'), 1700); }
+function ouvrir(l) { if (l) window.open(lien(l), '_blank', 'noopener'); }
+const etat = { route: null, data: null, rangs: [], sel: -1, cote: 'd', aires: false, sensMobile: 0 };
+try { Object.assign(etat, JSON.parse(localStorage.getItem('fe-etat') || '{}'), { data: null, rangs: [], sel: -1 }); } catch (e) {}
+const retenir = () => localStorage.setItem('fe-etat', JSON.stringify({ route: etat.route, aires: etat.aires, sensMobile: etat.sensMobile }));
+const cache = {};
+const sansAcc = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+let INDEX = null;
+async function index() { if (!INDEX) { try { INDEX = await fetch('d/_index.json').then(x => x.json()); } catch (e) { INDEX = []; } } return INDEX; }
+const infos = r => DONNEES.liste.find(x => x.route === r);
+const badge = (r, petit) => { const i = infos(r); return '<span class="cartouche' + (i && i.anneau ? ' anneau' : '') + '"' + (petit ? ' style="min-width:40px;height:24px;font-size:12px"' : '') + '>' + esc(i && i.anneau ? '⟳' : r) + '</span>'; };
+async function charger(r) {
+  if (!cache[r]) cache[r] = await fetch('d/' + encodeURIComponent(r) + '.json').then(x => { if (!x.ok) throw new Error(x.status); return x.json(); });
+  return cache[r];
+}
+
+/* ---------- Les deux sens réunis sur un seul axe : un rang = un échangeur ---------- */
+// a : la chaussée qui va vers le sud (nord en haut de l'écran) ; b : celle qui remonte
+function ordreSens(d) {
+  const [x, y] = d.chaussees;
+  if (!y || d.route.startsWith('anneau-')) return [x, y];
+  // tendance générale : la chaussée qui perd le plus de latitude va vers le bas (même un axe presque
+  // est-ouest a une pente qui tranche)
+  const pente = c => c.fin[1] - c.debut[1];
+  return pente(x) <= pente(y) ? [x, y] : [y, x];
+}
+function rangs(d, aires) {
+  const [a, b] = ordreSens(d), La = a.km || 1, Lb = (b && b.km) || 1;
+  const out = [];
+  // un échangeur se retrouve dans les deux sens par son numéro ; une bifurcation par l'autoroute rejointe
+  // un même bout vu des deux sens (« X (sortie seule) » / « X (entrée seule) », « Fin » / « Début de l’autoroute »,
+  // « Vers » / « Depuis la N296 ») se retrouve par son nom ainsi ramené
+  const nomCle = n => (n || '').replace(/\s*\((?:entrée|sortie) seule\)$/, '').replace(/^(?:Début|Fin) de l’autoroute$/, '·bout').replace(/^(?:Depuis|Vers) /, '');
+  const cle = p => p.kind === 'echangeur' && p.num ? 'n' + p.num : p.kind === 'echangeur' && p.nom ? 'x' + nomCle(p.nom) : p.kind === 'bifurcation' ? 'b' + (p.nom || '').split(/[: ]/)[0] : null;
+  const cache_ = p => !aires && (p.kind === 'aire' || p.kind === 'peage');
+  for (const p of a.points) if (!cache_(p)) out.push({ pos: p.km, d: p, g: null });
+  if (b) for (const q of b.points) {
+    if (cache_(q)) continue;
+    const pos = La - q.km * (La / Lb);
+    const k = cle(q);
+    const r = k && out.find(x => x.d && cle(x.d) === k && !x.g && Math.abs(x.pos - pos) < 8);
+    if (r) r.g = q; else out.push({ pos, d: null, g: q });
+  }
+  return out.sort((x, y) => x.pos - y.pos);
+}
+const nomRang = r => (r.d || r.g).nom;
+const numRang = r => (r.d || r.g).num;
+const kindRang = r => (r.d || r.g).kind;
+function pastille(r) {
+  const k = kindRang(r);
+  if (k === 'echangeur' && !numRang(r)) return '<span class="num autre">·</span>';
+  if (k === 'echangeur') return '<span class="num">' + esc(numRang(r)) + '</span>';
+  if (k === 'aire') return '<span class="num aire">P</span>';
+  if (k === 'peage') return '<span class="num autre">€</span>';
+  if (k === 'bifurcation') return '<span class="num bif">' + esc((nomRang(r) || '').split(/[: ]/)[0]) + '</span>';
+  return '<span class="num autre">' + (k === 'entree' ? '↘' : '·') + '</span>';
+}
+
+/* ---------- Schéma SVG d'un rang : deux chaussées, bretelles, tronçon entre les deux ----------
+   Sens « droite » (d) : on roule de haut en bas sur la voie de droite ; sortie à droite en haut, entrée
+   à droite en bas. Sens « gauche » (g) : de bas en haut sur la voie de gauche ; sortie à gauche en bas,
+   entrée à gauche en haut (circulation à droite). */
+function schema(r, i) {
+  const H = 96, xg = 72, xd = 168, y1 = 16, y2 = H - 16;  // 96 px entre les voies : la pastille du numéro tient au milieu sans couvrir le tronçon
+  const el = (cote, k, dPath, tronc) => {
+    const p = r[cote]; const l = p && p.f[k];
+    const cls = 'geste' + (tronc ? ' tronc' : '') + (l ? '' : ' absent');
+    return '<path class="' + cls + '" d="' + dPath + '" data-r="' + i + '" data-c="' + cote + '" data-k="' + k + '"/>';
+  };
+  return '<svg class="schema" viewBox="0 0 240 ' + H + '" preserveAspectRatio="none" aria-hidden="true">'
+    + '<line class="voie" x1="' + xg + '" y1="0" x2="' + xg + '" y2="' + H + '"/><line class="voie" x1="' + xd + '" y1="0" x2="' + xd + '" y2="' + H + '"/>'
+    + '<line class="voie-trait" x1="' + xg + '" y1="0" x2="' + xg + '" y2="' + H + '"/><line class="voie-trait" x1="' + xd + '" y1="0" x2="' + xd + '" y2="' + H + '"/>'
+    + '<path class="fleche" d="M' + (xg - 4) + ' 6 l4 7 l4 -7z"/><path class="fleche" d="M' + (xd - 4) + ' ' + (H - 6) + ' l4 -7 l4 7z"/>'
+    // sens d (descend, voie de gauche) : sortie en haut vers la gauche, entrée en bas depuis la gauche
+    + el('d', 'oblig', 'M' + xg + ' ' + y1 + ' L' + xg + ' ' + y2, true)
+    + el('d', 'sortie', 'M' + xg + ' ' + y1 + ' C ' + (xg - 10) + ' ' + (y1 + 16) + ', ' + (xg - 32) + ' ' + (y1 + 18) + ', ' + (xg - 62) + ' ' + (y1 + 26))
+    + el('d', 'entree', 'M' + (xg - 62) + ' ' + (y2 - 26) + ' C ' + (xg - 32) + ' ' + (y2 - 18) + ', ' + (xg - 10) + ' ' + (y2 - 16) + ', ' + xg + ' ' + y2)
+    // sens g (monte, voie de droite) : sortie en bas vers la droite, entrée en haut depuis la droite
+    + el('g', 'oblig', 'M' + xd + ' ' + y2 + ' L' + xd + ' ' + y1, true)
+    + el('g', 'sortie', 'M' + xd + ' ' + y2 + ' C ' + (xd + 10) + ' ' + (y2 - 16) + ', ' + (xd + 32) + ' ' + (y2 - 18) + ', ' + (xd + 62) + ' ' + (y2 - 26))
+    + el('g', 'entree', 'M' + (xd + 62) + ' ' + (y1 + 26) + ' C ' + (xd + 32) + ' ' + (y1 + 18) + ', ' + (xd + 10) + ' ' + (y1 + 16) + ', ' + xd + ' ' + y1)
+    + '</svg>';
+}
+
+/* ---------- Bureau ---------- */
+let ROUTES_TROUVEES = null;
+async function filtrer(v) {
+  const q = sansAcc(v.trim());
+  ROUTES_TROUVEES = null;
+  if (q.length >= 3) { const I = await index(); ROUTES_TROUVEES = new Set(I.filter(x => sansAcc(x[2] + ' ' + x[3]).includes(q)).map(x => x[0])); }
+  listeRoutes(v);
+}
+function listeRoutes(filtre) {
+  const f = sansAcc((filtre || '').trim());
+  const item = r => '<li><button type="button" data-route="' + esc(r.route) + '" aria-current="' + (r.route === etat.route) + '">' + badge(r.route) + '<span><b>' + esc(r.anneau ? r.titre : r.route) + '</b><small>' + esc(r.sens.join(' ↔ ')) + '</small></span></button></li>';
+  const ok = r => !f || sansAcc(r.route + ' ' + r.titre + ' ' + r.sens.join(' ')).includes(f) || (ROUTES_TROUVEES && ROUTES_TROUVEES.has(r.route));
+  $('listeA').innerHTML = DONNEES.liste.filter(r => !r.anneau && ok(r)).map(item).join('');
+  $('listeR').innerHTML = DONNEES.liste.filter(r => r.anneau && ok(r)).map(item).join('');
+  $('listeO').innerHTML = (DONNEES.ouvrages || []).filter(o => !f || (o.titre + ' ' + (o.route || '')).toLowerCase().includes(f)).map(o => '<li><button type="button" data-ouvrage="' + esc(o.id) + '" aria-current="' + (etat.ouvrage === o.id) + '"><span class="cartouche" style="background:#334155;box-shadow:inset 0 0 0 2px #fff,0 0 0 1px #334155">⛰</span><span><b>' + esc(o.titre) + '</b><small>' + esc(o.route || '') + ' · ' + o.km.toString().replace('.', ',') + ' km</small></span></button></li>').join('');
+}
+function entete() {
+  const d = etat.data, i = infos(etat.route), [a, b] = ordreSens(d);
+  const n = etat.rangs.filter(r => kindRang(r) === 'echangeur').length;
+  $('entete').innerHTML = '<div class="titre">' + badge(etat.route) + '<div><h1>' + esc(i.anneau ? i.titre : 'Autoroute ' + etat.route) + '</h1><div class="meta">' + Math.round(a.km) + ' km · ' + n + ' échangeurs · lu dans Waze le ' + esc(DONNEES.date) + '</div></div>'
+    + '<div class="options"><label class="puce"><input type="checkbox" id="cAires"' + (etat.aires ? ' checked' : '') + '> Aires et péages</label></div></div>'
+    + '<div class="gauche voie-lib">voie ↓ vers ' + esc(a.vers) + '</div>'
+    + '<div class="milieu">' + (b ? '<span class="panneau">▲ ' + esc(b.vers) + '</span>' : '') + '</div>'
+    + '<div class="droite voie-lib">' + (b ? 'voie ↑ vers ' + esc(b.vers) : '') + '</div>';
+  $('pied').innerHTML = '<span class="panneau">▼ ' + esc(a.vers) + '</span><span class="voie-lib">survolez une bretelle, ou le tronçon entre la sortie et l\'entrée</span>';
+  $('cAires').onchange = e => { etat.aires = e.target.checked; retenir(); dessiner(); };
+}
+function terminus(pos) {
+  const [a, b] = ordreSens(etat.data);
+  // en haut : la voie de gauche (descend) NAÎT ici, la voie de droite (monte) se PROLONGE ; en bas, l'inverse
+  const g = pos === 'haut' ? ['origine', a] : ['suite', a];
+  const d = pos === 'haut' ? ['suite', b] : ['origine', b];
+  const cel = ([k, ch], cote) => {
+    const t = ch && ch[k]; if (!t) return '<div></div>';
+    const txt = (k === 'suite' ? 'continue sur ' : 'arrive de ') + (k === 'suite' ? '' : 'l\'') + t.route + (t.vers ? (k === 'suite' ? ' vers ' + t.vers : ' (' + t.vers + ')') : '');
+    const inner = '<span class="cartouche" style="min-width:40px;height:24px;font-size:12px">' + esc(t.route) + '</span><span>' + esc(txt) + '</span>';
+    return t.page ? '<button type="button" class="term ' + cote + '" data-route="' + esc(t.page) + '" title="Ouvrir la page de l\'' + esc(t.route) + '">' + inner + '<span class="term-go">›</span></button>' : '<div class="term ' + cote + ' sans">' + inner + '</div>';
+  };
+  if (!(a && (a.origine || a.suite)) && !(b && (b.origine || b.suite))) return '';
+  const haut = pos === 'haut';
+  return '<div class="ligne terminus">' + cel(g, 'g') + '<svg class="schema" viewBox="0 0 240 64" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="fd' + pos + '" x1="0" y1="' + (haut ? 1 : 0) + '" x2="0" y2="' + (haut ? 0 : 1) + '"><stop offset="0" stop-color="var(--chaussee)"/><stop offset="1" stop-color="var(--chaussee)" stop-opacity="0"/></linearGradient></defs>'
+    + '<rect x="67" y="0" width="10" height="64" fill="url(#fd' + pos + ')"/><rect x="163" y="0" width="10" height="64" fill="url(#fd' + pos + ')"/></svg>' + cel(d, 'd') + '</div>';
+}
+function dessiner() {
+  etat.rangs = rangs(etat.data, etat.aires);
+  entete();
+  $('axe').innerHTML = terminus('haut') + etat.rangs.map((r, i) => {
+    const lib = (p, c) => p ? '<div class="etiq ' + c + '" data-r="' + i + '" data-c="' + (c === 'g' ? 'd' : 'g') + '"><span class="nom">' + esc(p.nom) + '</span>' + (p.dest && p.dest.length ? '<span class="dest">' + esc(p.dest.join(' · ')) + '</span>' : '') + '</div>' : '<div></div>';
+    return '<div class="ligne' + (kindRang(r) === 'aire' ? ' aire-l' : '') + '" role="option" id="rang' + i + '" data-r="' + i + '" aria-selected="' + (i === etat.sel) + '">'
+      + lib(r.d, 'g') + '<div style="position:relative">' + schema(r, i) + '<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none">' + pastille(r) + '</div></div>' + lib(r.g, 'd') + '</div>';
+  }).join('') + terminus('bas');
+  mini();
+  if (etat.sel < 0 || etat.sel >= etat.rangs.length) etat.sel = -1;
+  detail();
+}
+function mini() {
+  const L = etat.rangs.length ? etat.rangs[etat.rangs.length - 1].pos || 1 : 1;
+  $('mini').innerHTML = etat.rangs.filter(r => kindRang(r) === 'echangeur').map(r => '<i style="top:' + (100 * r.pos / L) + '%"></i>').join('') + '<b id="miniVue"></b>';
+  majMini();
+}
+function majMini() {
+  const c = $('centre'), v = $('miniVue'); if (!v) return;
+  const h = c.scrollHeight || 1;
+  v.style.top = (100 * c.scrollTop / h) + '%'; v.style.height = Math.max(4, 100 * c.clientHeight / h) + '%';
+}
+function blocSens(p, cote, i) {
+  const ch = ordreSens(etat.data)[cote === 'd' ? 0 : 1];
+  if (!p) return '<div class="bloc"><span class="panneau">' + (cote === 'd' ? '↓ ' : '↑ ') + esc(ch ? ch.vers : '') + '</span><div class="aide">Rien dans ce sens à cet endroit.</div></div>';
+  const tous = [...new Set(Object.values(p.f).filter(Boolean).flatMap(l => l.ids))];
+  return '<div class="bloc"><span class="panneau">' + (cote === 'd' ? '↓ ' : '↑ ') + esc(ch.vers) + '</span>'
+    + (p.dest && p.dest.length ? '<div class="aide" style="margin:-4px 0 8px">Panneau : ' + esc(p.dest.join(', ')) + '</div>' : '')
+    + '<div class="actions">' + GESTES.map(g => {
+      const l = p.f[g.k]; if (g.k === 'deux' && !l) return '';
+      return l ? '<a class="act' + (g.large ? ' large' : '') + '" href="' + esc(lien(l)) + '" target="_blank" rel="noopener" data-c="' + cote + '" data-k="' + g.k + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span>' + (etat.cote === cote ? '<kbd class="k">' + g.touche + '</kbd>' : '') + '</a>'
+        : '<span class="act off' + (g.large ? ' large' : '') + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></span>';
+    }).join('')
+    + (p.f.tout ? '<a class="act large" style="border-color:var(--rouge)" href="' + esc(lien(p.f.tout)) + '" target="_blank" rel="noopener">' + ICO.interdit + ICO.interdit + '<span>Tout fermer : ' + esc(p.lib_tout || '') + '</span>' + (etat.cote === cote ? '<kbd class="k">5</kbd>' : '') + '</a>' : '')
+    + '</div>' + lienBif(p) + '<button class="lien-ids" type="button" data-copie="' + tous.join(',') + '">Copier les ID des segments</button></div>';
+}
+function lienBif(p) {
+  const l = p.lien; if (!l) return '';
+  const txt = 'Aller à l\'' + l.route + (l.vers ? (/^(interieur|exterieur)$/.test(sansAcc(l.vers)) ? ' (' + l.vers.toLowerCase() + 'e)' : ' vers ' + l.vers) : '');
+  return l.page ? '<button type="button" class="term d" style="margin-top:8px" data-route="' + esc(l.page) + '"><span class="cartouche" style="min-width:40px;height:24px;font-size:12px">' + esc(l.route) + '</span><span>' + esc(txt) + '</span><span class="term-go">›</span></button>' : '';
+}
+function detail() {
+  const r = etat.rangs[etat.sel];
+  if (!r) {
+    $('detail').innerHTML = '<div class="aide"><h3 style="margin:0 0 10px">Comment ça marche</h3><p>Chaque échangeur est dessiné avec ses deux chaussées. <b>Survolez</b> une bretelle de sortie, une bretelle d\'entrée ou le <b>tronçon entre les deux</b> : un clic ouvre WME avec les segments à fermer déjà sélectionnés.</p><p><kbd>↑</kbd> <kbd>↓</kbd> pour passer d\'un échangeur à l\'autre, <kbd>←</kbd> <kbd>→</kbd> pour changer de sens, <kbd>1</kbd> à <kbd>5</kbd> pour les gestes, <kbd>Ctrl K</kbd> pour chercher.</p><p>Les rocades et périphériques ont deux sens : <b>Intérieur</b> (horaire) et <b>Extérieur</b> (antihoraire).</p></div>';
+    return;
+  }
+  $('detail').innerHTML = '<h3>' + pastille(r) + esc(nomRang(r)) + '</h3><div class="sous">' + ({ echangeur: 'Échangeur', aire: 'Aire', bifurcation: 'Bifurcation', entree: 'Entrée', autre: 'Sortie sans numéro' }[kindRang(r)] || '') + ' · km ' + Math.round(r.pos) + ((r.d || r.g || {}).nom_source ? ' · nom de l’échangeur d’après ' + ((r.d || r.g).nom_source === 'lieu Waze' ? 'le lieu Waze' : esc((r.d || r.g).nom_source)) : '') + ((r.d || r.g || {}).source === 'connaissance locale' ? ' · nom arbitré (connaissance locale)' : (r.d || r.g || {}).source === 'l’autre sens' ? ' · numéro repris de l’autre sens (absent de ce côté dans Waze)' : (r.d || r.g || {}).source ? (((r.d || r.g).num) ? ' · numéro et nom d’après ' + esc((r.d || r.g).source) + ' (absents de Waze)' : ' · nom d’après ' + esc((r.d || r.g).source) + ' (absent de Waze)') : '') + '</div>'
+    + blocSens(r.d, 'd', etat.sel) + blocSens(r.g, 'g', etat.sel);
+}
+function choisir(i, defiler) {
+  etat.sel = i;
+  document.querySelectorAll('.ligne[aria-selected=true]').forEach(e => e.setAttribute('aria-selected', 'false'));
+  const e = $('rang' + i); if (e) { e.setAttribute('aria-selected', 'true'); if (defiler) e.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+  detail();
+}
+async function allerA(r, num) {
+  etat.route = r; retenir(); if (window.FE_VUES) FE_VUES.route(r); listeRoutes($('filtre').value);
+  $('axe').innerHTML = '<div class="aide" style="padding:40px;text-align:center">Chargement…</div>';
+  try { etat.data = await charger(r); } catch (e) { $('axe').innerHTML = '<div class="aide" style="padding:40px">Impossible de charger ' + esc(r) + '.</div>'; return; }
+  const go = () => { etat.sel = -1; dessiner(); $('centre').scrollTop = 0; if (num != null) { const i = etat.rangs.findIndex(x => numRang(x) === num || nomRang(x) === num); if (i >= 0) choisir(i, true); } };
+  if (document.startViewTransition) document.startViewTransition(go); else go();
+  mobileRendu();
+}
+
+/* ---------- Ouvrage : un tunnel, un pont, un viaduc, fermé en entier ---------- */
+async function ouvrage(id) {
+  etat.ouvrage = id; etat.route = null; listeRoutes($('filtre').value);
+  if (!cache.__ouvrages) cache.__ouvrages = await fetch('d/ouvrages.json').then(x => x.json());
+  const o = cache.__ouvrages.find(x => x.id === id); if (!o) return;
+  const bouton = (l, txt, large) => l ? '<a class="act' + (large ? ' large' : '') + '" style="min-height:64px" href="' + esc(lien(l)) + '" target="_blank" rel="noopener">' + ICO.interdit + '<span>' + esc(txt) + '</span></a>' : '';
+  $('entete').innerHTML = '<div class="titre"><span class="cartouche" style="background:#334155;box-shadow:inset 0 0 0 2px #fff,0 0 0 1px #334155">⛰</span><div><h1>' + esc(o.titre) + '</h1><div class="meta">' + esc(o.route || '') + ' · ' + String(o.km).replace('.', ',') + ' km · lu dans Waze le ' + esc(DONNEES.date) + '</div></div></div>';
+  $('pied').innerHTML = '';
+  $('mini').innerHTML = '';
+  $('detail').innerHTML = '<div class="aide"><h3 style="margin:0 0 10px">' + esc(o.titre) + '</h3><p>' + (o.type === 'tunnel' || o.type === 'pont' ? 'Survolez une voie : un clic ouvre WME avec les segments de ce sens déjà sélectionnés.' : 'Un clic ouvre WME avec tous les segments de l’ouvrage déjà sélectionnés.') + '</p></div>';
+  if (o.type === 'tunnel' || o.type === 'pont') { $('axe').innerHTML = filaire(o); return; }
+  $('axe').innerHTML = '<div class="bloc" style="max-width:560px;margin:24px auto"><div class="aide" style="margin-bottom:12px">Fermeture de l\'ouvrage entier' + (o.double_sens ? ' — <b>segment à double sens</b> : choisissez la direction dans la fenêtre de fermeture de WME' : '') + '.</div><div class="actions">'
+    + (o.sens || []).filter(Boolean).map(x => bouton(x.f, 'Fermé vers ' + x.vers)).join('') + bouton(o.tout, 'Fermé dans les deux sens', true) + '</div></div>';
+  $('detail').innerHTML = '<div class="aide"><h3 style="margin:0 0 10px">' + esc(o.titre) + '</h3><p>Un clic ouvre WME avec tous les segments de l\'ouvrage déjà sélectionnés.</p></div>';
+}
+
+function filaire(o) {
+  // sens[0] va vers l'extrémité « b », sens[1] vers « a » ; pays = [pays de a, pays de b]
+  const [s0, s1] = o.sens;
+  // à gauche : la France (tunnel frontalier) ; sinon l'extrémité la plus à l'ouest (on n'a que les noms : on garde a)
+  let gauche = { nom: s1 && s1.vers, pays: o.pays[0], versLui: s1 }, droite = { nom: s0 && s0.vers, pays: o.pays[1], versLui: s0 };
+  if (o.pays[1] === 'France' && o.pays[0] && o.pays[0] !== 'France') [gauche, droite] = [droite, gauche];
+  const tunnel = o.type === 'tunnel', W = 760, H = 230, x0 = 150, x1 = W - 150;
+  const voie = (y, l, fleche, txt) => '<g class="ov-voie' + (l ? '' : ' absent') + '" data-l="' + (l ? esc(JSON.stringify(l)) : '') + '" data-t="' + esc(txt) + '">'
+    + '<rect x="' + x0 + '" y="' + (y - 18) + '" width="' + (x1 - x0) + '" height="36" rx="6"/>'
+    + Array.from({ length: 6 }, (_, k) => { const x = x0 + 40 + k * ((x1 - x0 - 80) / 5); return '<path class="ov-fleche" d="M' + (fleche > 0 ? x - 9 : x + 9) + ' ' + (y - 8) + ' L' + (fleche > 0 ? x + 9 : x - 9) + ' ' + y + ' L' + (fleche > 0 ? x - 9 : x + 9) + ' ' + (y + 8) + '"/>'; }).join('') + '</g>';
+  const bout = (x, e, ancre) => '<text x="' + x + '" y="' + (H / 2 - 6) + '" text-anchor="' + ancre + '" class="ov-pays">' + esc(e.pays || '') + '</text><text x="' + x + '" y="' + (H / 2 + 16) + '" text-anchor="' + ancre + '" class="ov-ville">' + esc((e.nom || '').replace(/\s*\((Italie|Espagne|nord|sud)\)/, '')) + '</text>';
+  const portail = x => tunnel ? '<path class="ov-portail" d="M' + x + ' 40 v150" />' : '<path class="ov-pile" d="M' + x + ' 188 v24 M' + (x + 120) + ' 188 v24 M' + (x - 120) + ' 188 v24" />';
+  // circulation à droite : la voie du BAS va vers la DROITE, celle du HAUT vers la GAUCHE
+  const svg = '<svg class="ov" viewBox="0 0 ' + W + ' ' + H + '">'
+    + (tunnel ? '<rect class="ov-montagne" x="' + x0 + '" y="34" width="' + (x1 - x0) + '" height="162" rx="18"/>' : '<path class="ov-eau" d="M' + (x0 - 20) + ' 205 Q ' + (W / 2) + ' 225 ' + (x1 + 20) + ' 205"/>')
+    + voie(H / 2 - 26, gauche.versLui, -1, 'Fermé vers ' + (gauche.nom || '')) + voie(H / 2 + 26, droite.versLui, 1, 'Fermé vers ' + (droite.nom || ''))
+    + portail(x0) + portail(x1) + bout(x0 - 16, gauche, 'end') + bout(x1 + 16, droite, 'start')
+    + (tunnel && gauche.pays && droite.pays ? '<path class="ov-frontiere" d="M' + (W / 2) + ' 30 v170"/><text x="' + (W / 2) + ' " y="24" text-anchor="middle" class="ov-ville">frontière</text>' : '')
+    + '</svg>';
+  return '<div class="bloc ov-bloc"><div class="aide" style="margin-bottom:6px">Survolez une voie : un clic ferme l\'ouvrage dans ce sens.' + (o.double_sens ? ' <b>Segment à double sens</b> : choisissez aussi la direction dans la fenêtre de fermeture de WME.' : '') + '</div>' + svg
+    + '<div class="actions" style="margin-top:8px"><a class="act large" style="min-height:58px" href="' + esc(lien(o.tout)) + '" target="_blank" rel="noopener">' + ICO.interdit + ICO.interdit + '<span>Fermé dans les deux sens</span></a></div></div>';
+}
+$('axe').addEventListener('pointermove', ev => {
+  const g = ev.target.closest('.ov-voie'); if (!g) return;
+  document.querySelectorAll('.ov-voie.vu').forEach(x => x !== g && x.classList.remove('vu'));
+  if (!g.classList.contains('absent')) g.classList.add('vu');
+  bulle.innerHTML = esc(g.dataset.t) + '<small>' + (g.classList.contains('absent') ? 'pas de voie dans ce sens' : 'clic : ouvrir WME') + '</small>';
+  bulle.style.left = Math.min(innerWidth - 300, ev.clientX + 16) + 'px'; bulle.style.top = (ev.clientY + 16) + 'px'; bulle.classList.add('vu');
+});
+$('axe').addEventListener('click', ev => { const g = ev.target.closest('.ov-voie'); if (g && g.dataset.l) ouvrir(JSON.parse(g.dataset.l)); });
+$('axe').addEventListener('pointerout', ev => { if (ev.target.closest && ev.target.closest('.ov-voie') && !ev.relatedTarget?.closest?.('.ov-voie')) { document.querySelectorAll('.ov-voie.vu').forEach(x => x.classList.remove('vu')); bulle.classList.remove('vu'); } });
+
+/* ---------- Interactions bureau ---------- */
+const bulle = $('bulle');
+$('axe').addEventListener('pointermove', ev => {
+  const g = ev.target.closest('.geste');
+  document.querySelectorAll('.geste.vu').forEach(x => { if (x !== g) x.classList.remove('vu'); });
+  if (!g) { bulle.classList.remove('vu'); return; }
+  const r = etat.rangs[+g.dataset.r], p = r[g.dataset.c], k = g.dataset.k;
+  if (g.classList.contains('absent') || !p) { bulle.innerHTML = 'Rien à fermer ici<small>' + ({ sortie: 'pas de sortie', entree: 'pas d\'entrée', oblig: 'pas de tronçon' }[k]) + ' dans ce sens</small>'; }
+  else {
+    // au survol du tronçon : on montre aussi l'entrée, pour le cumul (Maj enfoncé)
+    const cumul = k === 'oblig' && ev.shiftKey && p.f.deux;
+    bulle.innerHTML = esc(cumul ? texteGeste('deux', p) : texteGeste(k, p)) + '<small>' + esc(p.nom) + ' · ' + (cumul ? p.f.deux : p.f[k]).ids.length + ' segment(s) · clic : ouvrir WME' + (k === 'oblig' && p.f.deux && !cumul ? ' · Maj : + entrée interdite' : '') + '</small>';
+    g.classList.add('vu');
+  }
+  bulle.style.left = Math.min(innerWidth - 300, ev.clientX + 16) + 'px'; bulle.style.top = (ev.clientY + 16) + 'px';
+  bulle.classList.add('vu');
+});
+$('axe').addEventListener('pointerleave', () => { bulle.classList.remove('vu'); document.querySelectorAll('.geste.vu').forEach(x => x.classList.remove('vu')); });
+$('axe').addEventListener('click', ev => {
+  const g = ev.target.closest('.geste');
+  if (g && !g.classList.contains('absent')) {
+    const r = etat.rangs[+g.dataset.r], p = r[g.dataset.c];
+    ouvrir(g.dataset.k === 'oblig' && ev.shiftKey && p.f.deux ? p.f.deux : p.f[g.dataset.k]);
+    choisir(+g.dataset.r); etat.cote = g.dataset.c; detail(); return;
+  }
+  const l = ev.target.closest('[data-r]'); if (l) { if (l.dataset.c) etat.cote = l.dataset.c; choisir(+l.dataset.r); }
+});
+$('centre').addEventListener('scroll', majMini, { passive: true });
+$('mini').addEventListener('click', ev => { const r = $('mini').getBoundingClientRect(); const c = $('centre'); c.scrollTop = (ev.clientY - r.top) / r.height * c.scrollHeight - c.clientHeight / 2; });
+document.addEventListener('click', ev => {
+  const o = ev.target.closest('[data-ouvrage]'); if (o) { ouvrage(o.dataset.ouvrage); $('feuille').classList.remove('vu'); mOuvrage(o.dataset.ouvrage); return; }
+  const b = ev.target.closest('[data-route]'); if (b) { etat.ouvrage = null; allerA(b.dataset.route); $('feuille').classList.remove('vu'); $('gestes').classList.remove('vu'); return; }
+  const c = ev.target.closest('[data-copie]'); if (c) navigator.clipboard.writeText(c.dataset.copie).then(() => toast('ID copiés'), () => toast('Copie impossible'));
+});
+$('filtre').oninput = e => filtrer(e.target.value);
+document.addEventListener('keydown', ev => {
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); palette(true); return; }
+  if ($('palette').classList.contains('vu') || /input|textarea/i.test(document.activeElement.tagName)) return;
+  if (!etat.rangs.length) return;
+  if (ev.key === 'ArrowDown' || ev.key === 'j') { ev.preventDefault(); choisir(Math.min(etat.rangs.length - 1, etat.sel + 1), true); }
+  else if (ev.key === 'ArrowUp' || ev.key === 'k') { ev.preventDefault(); choisir(Math.max(0, etat.sel - 1), true); }
+  else if (ev.key === 'ArrowLeft') { etat.cote = 'g'; detail(); }
+  else if (ev.key === 'ArrowRight') { etat.cote = 'd'; detail(); }
+  else if (/^[1-5]$/.test(ev.key) && etat.sel >= 0) {
+    const p = etat.rangs[etat.sel][etat.cote]; if (!p) return;
+    ouvrir(p.f[['entree', 'sortie', 'oblig', 'deux', 'tout'][+ev.key - 1]]);
+  }
+});
+
+/* ---------- Palette (Ctrl K) : autoroutes et échangeurs ---------- */
+let pRes = [], pSel = 0;
+function palette(ouvre) {
+  $('palette').classList.toggle('vu', ouvre);
+  if (ouvre) { $('pQ').value = ''; pRemplir(); setTimeout(() => $('pQ').focus(), 0); }
+}
+async function pRemplir() {
+  const q = sansAcc($('pQ').value.trim());
+  pRes = [];
+  if (q) {
+    const I = await index();
+    for (const [r, num, nom, dest, k] of I) {
+      const t = sansAcc(num + ' ' + nom + ' ' + dest);
+      if (t.includes(q) || (num && sansAcc(num) === q)) {
+        if (r.startsWith('ouvrage:')) pRes.push({ ouvrage: r.slice(8), route: null, txt: nom, sous: dest || 'ouvrage' });
+        else pRes.push({ route: r, num: num || nom, txt: (num ? num + ' · ' : '') + nom, sous: (infos(r) ? (infos(r).anneau ? infos(r).titre : r) : r) + (dest ? ' · ' + dest : '') });
+      }
+      if (pRes.length > 60) break;
+    }
+  }
+  const routes = DONNEES.liste.filter(r => !q || sansAcc(r.route + ' ' + r.titre + ' ' + r.sens.join(' ')).includes(q)).map(r => ({ route: r.route, txt: (r.anneau ? r.titre : r.route), sous: r.sens.join(' ↔ ') }));
+  // sans saisie : TOUTES les autoroutes (la liste était coupée à 40) ; avec saisie : routes puis échangeurs
+  pRes = q ? routes.concat(pRes).slice(0, 80) : routes; pSel = 0; pDessin();
+}
+function pDessin() { $('pListe').innerHTML = pRes.map((x, i) => '<li role="option" data-i="' + i + '" aria-selected="' + (i === pSel) + '">' + (x.ouvrage ? '<span class="cartouche" style="background:#334155;min-width:40px;height:24px;font-size:12px">⛰</span>' : badge(x.route, true)) + '<span>' + esc(x.txt) + '</span><small>' + esc(x.sous) + '</small></li>').join('') || '<li>Aucun résultat</li>'; }
+$('pQ').oninput = pRemplir;
+$('pQ').onkeydown = ev => {
+  if (ev.key === 'ArrowDown') { pSel = Math.min(pRes.length - 1, pSel + 1); pDessin(); ev.preventDefault(); }
+  else if (ev.key === 'ArrowUp') { pSel = Math.max(0, pSel - 1); pDessin(); ev.preventDefault(); }
+  else if (ev.key === 'Enter' && pRes[pSel]) { palette(false); const x = pRes[pSel]; x.ouvrage ? ouvrage(x.ouvrage) : allerA(x.route, x.num); }
+  else if (ev.key === 'Escape') palette(false);
+};
+$('pListe').onclick = ev => { const li = ev.target.closest('li[data-i]'); if (li) { const x = pRes[+li.dataset.i]; palette(false); x.ouvrage ? ouvrage(x.ouvrage) : allerA(x.route, x.num); } };
+$('palette').onclick = ev => { if (ev.target === $('palette')) palette(false); };
+$('ouvrirPalette').onclick = () => palette(true);
+
+/* ---------- Téléphone ---------- */
+function mobileRendu() {
+  const d = etat.data, i = infos(etat.route); if (!d || !i) return;
+  $('mQ').style.display = '';
+  $('mRoute').innerHTML = badge(etat.route) + '<span><b>' + esc(i.anneau ? i.titre : 'Autoroute ' + etat.route) + '</b><small>Changer d\'autoroute ▾</small></span>';
+  if (etat.sensMobile >= d.chaussees.length) etat.sensMobile = 0;
+  $('mSens').innerHTML = d.chaussees.map((c, k) => '<button type="button" data-s="' + k + '" aria-pressed="' + (k === etat.sensMobile) + '">→ ' + esc(c.vers) + '</button>').join('');
+  mListe();
+}
+function mListe() {
+  const ch = etat.data.chaussees[etat.sensMobile], q = $('mQ').value.trim().toLowerCase();
+  etat.mPts = ch.points.filter(p => (etat.aires || (p.kind !== 'aire' && p.kind !== 'peage')) && (!q || (p.num || '') === q || (p.num || '').startsWith(q) || (p.nom || '').toLowerCase().includes(q) || (p.dest || []).join(' ').toLowerCase().includes(q)));
+  $('mListe').innerHTML = etat.mPts.map((p, i) => {
+    const n = GESTES.filter(g => p.f[g.k]).length + (p.f.tout ? 1 : 0);
+    return '<button class="m-rang" type="button" data-m="' + i + '">' + pastille({ d: p }) + '<span class="m-txt"><b>' + esc(p.nom) + '</b><small>' + esc((p.dest || []).join(', ') || (p.lien && p.lien.vers ? 'vers ' + p.lien.vers : '') || 'km ' + Math.round(p.km)) + '</small></span><span class="m-n">' + n + '</span><span class="m-chev">›</span></button>';
+  }).join('') || '<p class="aide" style="text-align:center;padding:40px 0">Aucun échangeur ne correspond.</p>';
+}
+function mGestes(i) {
+  const p = etat.mPts[i], ch = etat.data.chaussees[etat.sensMobile];
+  const tous = [...new Set(Object.values(p.f).filter(Boolean).flatMap(l => l.ids))];
+  $('gBoite').innerHTML = '<div class="poignee"></div><div class="g-tete">' + pastille({ d: p }) + '<div><b>' + esc(p.nom) + '</b><small>' + esc((p.dest || []).join(', ')) + '</small></div></div>'
+    + '<div class="g-sens"><span class="panneau">→ ' + esc(ch.vers) + '</span></div><div class="g-gestes">'
+    + GESTES.map(g => { const l = p.f[g.k]; if (g.k === 'deux' && !l) return ''; return l ? '<a class="g-act' + (g.large ? ' large' : '') + '" href="' + esc(lien(l)) + '" target="_blank" rel="noopener">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></a>' : '<span class="g-act off' + (g.large ? ' large' : '') + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></span>'; }).join('')
+    + (p.f.tout ? '<a class="g-act large tout" href="' + esc(lien(p.f.tout)) + '" target="_blank" rel="noopener">' + ICO.interdit + ICO.interdit + '<span>Tout fermer : ' + esc(p.lib_tout || '') + '</span></a>' : '')
+    + '</div>' + lienBif(p) + '<button class="lien-ids" type="button" data-copie="' + tous.join(',') + '">Copier les ID des segments</button>';
+  $('gestes').classList.add('vu');
+}
+$('mListe').onclick = ev => { const b = ev.target.closest('[data-m]'); if (b) mGestes(+b.dataset.m); };
+$('mSens').onclick = ev => { const b = ev.target.closest('[data-s]'); if (!b) return; etat.sensMobile = +b.dataset.s; retenir(); mobileRendu(); scrollTo({ top: 0 }); };
+$('mQ').oninput = mListe;
+$('mRoute').onclick = () => { $('feuille').classList.add('vu'); $('fQ').value = ''; fListe(); };
+$('feuille').onclick = ev => { if (ev.target === $('feuille')) $('feuille').classList.remove('vu'); };
+$('gestes').onclick = ev => { if (ev.target === $('gestes') || ev.target.closest('.g-act:not(.off)')) $('gestes').classList.remove('vu'); };
+function fListe() {
+  const f = $('fQ').value.trim().toLowerCase();
+  const fo = (DONNEES.ouvrages || []).filter(o => !f || (o.titre + ' ' + (o.route || '')).toLowerCase().includes(f)).map(o => '<li><button type="button" data-ouvrage="' + esc(o.id) + '"><span class="cartouche" style="background:#334155">⛰</span><span><b>' + esc(o.titre) + '</b><small>' + esc(o.route || '') + '</small></span></button></li>').join('');
+  $('fListe').innerHTML = DONNEES.liste.filter(r => !f || sansAcc(r.route + ' ' + r.titre + ' ' + r.sens.join(' ')).includes(sansAcc(f)) || (ROUTES_TROUVEES && ROUTES_TROUVEES.has(r.route))).map(r => '<li><button type="button" data-route="' + esc(r.route) + '">' + badge(r.route) + '<span><b>' + esc(r.anneau ? r.titre : r.route) + '</b><small>' + esc(r.sens.join(' ↔ ')) + '</small></span></button></li>').join('');
+  $('fListe').innerHTML += fo;
+}
+async function mOuvrage(id) {
+  if (!cache.__ouvrages) cache.__ouvrages = await fetch('d/ouvrages.json').then(x => x.json());
+  const o = cache.__ouvrages.find(x => x.id === id); if (!o) return;
+  $('mRoute').innerHTML = '<span class="cartouche" style="background:#334155">⛰</span><span><b>' + esc(o.titre) + '</b><small>Changer ▾</small></span>';
+  $('mSens').innerHTML = ''; $('mQ').style.display = 'none';
+  $('mListe').innerHTML = '<div class="g-gestes">' + (o.sens || []).filter(Boolean).map(x => '<a class="g-act" href="' + esc(lien(x.f)) + '" target="_blank" rel="noopener">' + ICO.interdit + '<span>Fermé vers ' + esc(x.vers) + '</span></a>').join('') + '<a class="g-act large tout" href="' + esc(lien(o.tout)) + '" target="_blank" rel="noopener">' + ICO.interdit + ICO.interdit + '<span>Fermé dans les deux sens</span></a></div>' + (o.double_sens ? '<p class="aide">Segment à double sens : choisissez la direction dans la fenêtre de fermeture de WME.</p>' : '');
+}
+$('fQ').oninput = async () => { const q = sansAcc($('fQ').value.trim()); ROUTES_TROUVEES = null; if (q.length >= 3) { const I = await index(); ROUTES_TROUVEES = new Set(I.filter(x => sansAcc(x[2] + ' ' + x[3]).includes(q)).map(x => x[0])); } fListe(); };
+
+/* ---------- Démarrage ---------- */
+listeRoutes('');
+// la dernière autoroute vue (ou celle de l'adresse ?r=…), commune aux trois vues
+FE_VUES.init('lineaire');
+allerA(FE_VUES.depart(DONNEES.liste.map(x => x.route), 'A9'));
+</script>
+</body>
+</html>

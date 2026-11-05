@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fermer un échangeur · carte</title>
+<style>
+:root {
+  --fond: #f4f6fa; --surface: #ffffff; --surface-2: #eef1f6; --bord: #dde3ec; --texte: #0e1726; --doux: #5b6779;
+  --accent: #2563eb; --rouge: #e11d2e; --rouge-doux: #fde8ea; --vert: #10b981; --ambre: #f59e0b;
+  --panneau: #1f4fbf; --cartouche: #d91c2a; --chaussee: #9aa5b5; --chaussee-fort: #475569; --voisin: #c9d1dc; --ville: #7b8798;
+  --ombre: 0 1px 2px rgb(15 23 42 / .06), 0 8px 24px rgb(15 23 42 / .08); --r: 14px; --t: 160ms cubic-bezier(.2,.7,.2,1);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --fond: #0b1220; --surface: #111a2b; --surface-2: #162236; --bord: #23324a; --texte: #e6ecf5; --doux: #93a1b8;
+    --accent: #60a5fa; --rouge-doux: #3a1218; --chaussee: #46566e; --chaussee-fort: #9fb0c8; --voisin: #1f2c42; --ville: #6b7a93;
+    --ombre: 0 1px 2px rgb(0 0 0 / .3), 0 12px 32px rgb(0 0 0 / .35); }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; }
+body { font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--texte); background: var(--fond); }
+button, input, select { font: inherit; color: inherit; }
+kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px solid var(--bord); border-bottom-width: 2px; border-radius: 6px; background: var(--surface); color: var(--doux); }
+
+/* ----- barre ----- */
+.barre { position: fixed; top: 0; left: 0; right: 0; height: 58px; z-index: 20; display: flex; align-items: center; gap: 14px; padding: 0 18px; border-bottom: 1px solid var(--bord); background: color-mix(in srgb, var(--surface) 85%, transparent); backdrop-filter: saturate(1.4) blur(14px); }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 800; white-space: nowrap; }
+.logo svg { width: 28px; height: 28px; }
+.choix { display: flex; align-items: center; gap: 8px; }
+.choix select { appearance: none; padding: 6px 30px 6px 12px; border: 1px solid var(--bord); border-radius: 10px; background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2393a1b8' stroke-width='3'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center; font-weight: 700; cursor: pointer; }
+.cartouche { display: inline-grid; place-items: center; min-width: 46px; height: 30px; padding: 0 9px; border-radius: 7px; background: var(--cartouche); color: #fff; font-weight: 800; box-shadow: inset 0 0 0 2px rgb(255 255 255 / .9), 0 0 0 1px var(--cartouche); }
+.titre small { display: block; color: var(--doux); font-size: 12px; font-weight: 500; }
+.esp { flex: 1; }
+.puce { display: flex; align-items: center; gap: 7px; padding: 6px 12px; border: 1px solid var(--bord); border-radius: 999px; background: var(--surface); font-size: 13px; cursor: pointer; }
+.puce input { accent-color: var(--accent); }
+.lien { color: var(--doux); font-size: 13px; }
+
+/* ----- carte ----- */
+#scene { position: fixed; top: 58px; left: 0; right: 380px; bottom: 0; overflow: hidden; background: var(--fond); touch-action: pan-y; }
+#carte { width: 100%; height: 100%; display: block; }
+#monde { will-change: transform; }
+.voisin { fill: none; stroke: var(--voisin); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+.voisin-c rect { fill: var(--cartouche); stroke: #fff; stroke-width: 1.5; }
+.voisin-c text { font: 800 11px ui-sans-serif, system-ui; fill: #fff; text-anchor: middle; dominant-baseline: central; }
+.ville circle { fill: var(--ville); }
+.ville text { font: 600 12px ui-sans-serif, system-ui; fill: var(--ville); paint-order: stroke; stroke: var(--fond); stroke-width: 3px; }
+.ville.grande text { font-size: 14px; }
+.voie { fill: none; stroke: var(--chaussee); stroke-width: 10; stroke-linejoin: round; stroke-linecap: butt; }
+.voie-trait { fill: none; stroke: var(--surface); stroke-width: 1.5; stroke-dasharray: 6 8; }
+.coupure { fill: none; stroke: var(--chaussee); stroke-width: 3; stroke-dasharray: 2 9; stroke-linecap: round; }
+.coupure-lib { font: 600 12px ui-sans-serif, system-ui; fill: var(--doux); paint-order: stroke; stroke: var(--fond); stroke-width: 4px; }
+.fleche { fill: var(--chaussee-fort); opacity: .55; }
+.geste { fill: none; stroke: var(--chaussee-fort); stroke-width: 7; stroke-linecap: round; cursor: pointer; transition: stroke var(--t), stroke-width var(--t), filter var(--t); }
+.geste.tronc { stroke: transparent; stroke-width: 20; }
+.geste.absent { stroke: var(--bord); stroke-width: 4; stroke-dasharray: 2 6; cursor: default; }
+.geste:not(.absent):hover, .geste.vu { stroke: var(--rouge); stroke-width: 9; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--rouge) 60%, transparent)); }
+.geste.tronc:not(.absent):hover, .geste.tronc.vu { stroke: color-mix(in srgb, var(--ambre) 80%, transparent); stroke-width: 20; }
+.pas { cursor: pointer; }
+/* cartouche de sortie (inspiré du panneau : chiffres noirs sur blanc, pictogramme de sortie) au bout de la bretelle */
+.cs rect { fill: #fff; stroke: #111; stroke-width: 2; }
+.cs text { font: 800 12.5px ui-sans-serif, system-ui; fill: #111; dominant-baseline: central; pointer-events: none; }
+.cs path { fill: none; stroke: #111; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.cs.bif rect { fill: var(--cartouche); stroke: #fff; } .cs.bif text { fill: #fff; font-size: 11px; }
+.cs.aire rect { fill: var(--vert); stroke: #fff; } .cs.aire text { fill: #fff; }
+.cs.autre rect { fill: var(--surface-2); stroke: var(--bord); } .cs.autre text { fill: var(--doux); }
+.actif .cs rect { stroke: var(--accent); stroke-width: 3; }
+.pas rect { fill: #fff; stroke: #111; stroke-width: 2; }
+.pas text { font: 800 12px ui-sans-serif, system-ui; fill: #111; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.pas.bif rect { fill: var(--cartouche); stroke: #fff; } .pas.bif text { fill: #fff; font-size: 11px; }
+.pas.aire rect { fill: var(--vert); stroke: #fff; } .pas.aire text { fill: #fff; }
+.pas.autre rect { fill: var(--surface-2); stroke: var(--bord); } .pas.autre text { fill: var(--doux); }
+.actif .pas rect { stroke: var(--accent); stroke-width: 3.5; }
+.halo { pointer-events: none; fill: color-mix(in srgb, var(--accent) 14%, transparent); stroke: color-mix(in srgb, var(--accent) 45%, transparent); stroke-width: 1.5; }
+.etiq { cursor: pointer; }
+.etiq .n { font: 650 13.5px ui-sans-serif, system-ui; fill: var(--texte); paint-order: stroke; stroke: var(--fond); stroke-width: 4px; }
+.etiq .d { font: 500 11.5px ui-sans-serif, system-ui; fill: var(--doux); paint-order: stroke; stroke: var(--fond); stroke-width: 3px; }
+.actif .etiq .n { fill: var(--accent); }
+.bout text { font: 700 13px ui-sans-serif, system-ui; fill: var(--accent); paint-order: stroke; stroke: var(--fond); stroke-width: 4px; text-anchor: middle; }
+
+/* ----- commandes posées sur la carte ----- */
+.verre { background: color-mix(in srgb, var(--surface) 88%, transparent); border: 1px solid var(--bord); border-radius: 12px; box-shadow: var(--ombre); backdrop-filter: blur(10px); }
+#mini { position: absolute; left: 14px; bottom: 14px; width: 168px; height: 176px; cursor: pointer; overflow: hidden; }
+#mini svg { width: 100%; height: 100%; display: block; }
+#mini .r { fill: none; stroke: var(--chaussee); stroke-width: 1; opacity: .6; }
+#mini .moi { fill: none; stroke: var(--cartouche); stroke-width: 2.5; }
+#mini .ici { fill: var(--accent); stroke: #fff; stroke-width: 1.5; }
+#zoom { position: absolute; right: 14px; bottom: 14px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 6px; }
+#zoom button { width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; font-size: 20px; font-weight: 700; cursor: pointer; color: var(--texte); }
+#zoom button:hover { background: var(--surface-2); }
+#zoom input { writing-mode: vertical-lr; direction: rtl; width: 22px; height: 120px; accent-color: var(--accent); cursor: pointer; }
+#zoom small { font-size: 11px; color: var(--doux); white-space: nowrap; }
+#pos { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); padding: 6px 14px; font-size: 13px; color: var(--doux); white-space: nowrap; }
+#pos b { color: var(--texte); }
+#prog { position: absolute; left: 0; top: 0; height: 3px; background: var(--accent); width: 0; }
+.bulle { position: fixed; z-index: 40; pointer-events: none; padding: 8px 11px; border-radius: 10px; background: var(--texte); color: var(--surface); font-size: 13px; font-weight: 650; max-width: 290px; opacity: 0; transition: opacity 120ms; }
+.bulle.vu { opacity: 1; }
+.bulle small { display: block; font-weight: 500; opacity: .75; }
+
+/* ----- panneau ----- */
+#detail { position: fixed; top: 58px; right: 0; bottom: 0; width: 380px; overflow: auto; padding: 18px; border-left: 1px solid var(--bord); background: var(--surface); z-index: 10; }
+#detail h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 4px; font-size: 19px; }
+#detail .sous { color: var(--doux); font-size: 13px; margin-bottom: 14px; }
+.num { display: inline-grid; place-items: center; min-width: 34px; height: 26px; padding: 0 6px; border-radius: 6px; background: #fff; color: #111; font-weight: 800; font-size: 13px; box-shadow: 0 0 0 2px #111; }
+.num.aire { background: var(--vert); color: #fff; box-shadow: none; } .num.bif { background: var(--cartouche); color: #fff; box-shadow: none; font-size: 11px; } .num.autre { background: var(--surface-2); color: var(--doux); box-shadow: 0 0 0 1px var(--bord); }
+.bloc { border: 1px solid var(--bord); border-radius: var(--r); padding: 12px; margin-bottom: 12px; background: var(--surface); box-shadow: var(--ombre); }
+.panneau { display: inline-flex; align-items: center; gap: 8px; padding: 5px 11px; margin-bottom: 10px; border-radius: 8px; background: var(--panneau); color: #fff; font-weight: 700; font-size: 13px; box-shadow: inset 0 0 0 2px rgb(255 255 255 / .85), 0 0 0 1px var(--panneau); }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.act { display: flex; align-items: center; gap: 9px; min-height: 52px; padding: 9px 11px; border: 1px solid var(--bord); border-radius: 12px; background: var(--surface-2); color: var(--texte); text-decoration: none; font-weight: 650; font-size: 13.5px; line-height: 1.2; transition: border-color var(--t), transform var(--t); }
+.act:hover { border-color: var(--rouge); transform: translateY(-1px); }
+.act.large { grid-column: 1 / -1; }
+.act.off { opacity: .35; pointer-events: none; }
+.act svg { width: 24px; height: 24px; flex: none; }
+.aide { color: var(--doux); font-size: 13px; }
+@media (max-width: 860px) {
+  #scene { right: 0; bottom: 44vh; } #detail { top: auto; left: 0; width: auto; height: 44vh; border-left: 0; border-top: 1px solid var(--bord); }
+  #mini { width: 104px; height: 110px; } .logo span, .titre small { display: none; }
+}
+</style>
+</head>
+<body>
+<header class="barre">
+  <div class="logo"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="26" height="26" rx="7" fill="#d91c2a"/><path d="M11 23V9M21 23V9" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><path d="M16 11v3M16 18v3" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span>Fermer un échangeur</span></div>
+  <div class="choix"><span class="cartouche" id="cart">A</span><select id="choix" aria-label="Autoroute"></select><div class="titre" id="titre"></div></div>
+  <span class="esp"></span>
+  <label class="puce"><input type="checkbox" id="aires" checked> Aires et péages</label>
+  <nav class="vues" id="vues" aria-label="Affichage"></nav>
+</header>
+<div id="scene">
+  <div id="prog"></div>
+  <svg id="carte"><g id="monde"></g></svg>
+  <div id="mini" class="verre" title="Cliquer pour y aller"><svg id="miniSvg"></svg></div>
+  <div id="zoom" class="verre"><button type="button" id="plus" title="Zoomer (+ ou Ctrl + molette)">+</button><input type="range" id="niveau" min="0" max="100" step="1" aria-label="Zoom"><button type="button" id="moins" title="Dézoomer (−)">−</button><small id="echelle"></small></div>
+  <div id="pos" class="verre"></div>
+</div>
+<aside id="detail"></aside>
+<div id="piste"></div>
+<div class="bulle" id="bulle"></div>
+
+<script src="vues.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const lien = l => 'https://www.waze.com/fr/editor?env=row&lat=' + l.c[1] + '&lon=' + l.c[0] + '&zoomLevel=' + l.z + '&segments=' + l.ids.join(',');
+const ICO = {
+  interdit: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#e11d2e"/><rect x="5" y="9.6" width="14" height="4.8" rx="1" fill="#fff"/></svg>',
+  oblig: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#1f4fbf"/><path d="M7.5 16.5 16 8M10.5 8H16v5.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+const GESTES = [
+  { k: 'entree', txt: 'Entrée interdite', ico: ICO.interdit },
+  { k: 'sortie', txt: 'Sortie interdite', ico: ICO.interdit },
+  { k: 'oblig', txt: 'Sortie obligatoire', ico: ICO.oblig },
+  { k: 'deux', txt: 'Entrée interdite + sortie obligatoire', ico: ICO.interdit + ICO.oblig, large: true },
+];
+function texteGeste(k, p) {
+  if (p.kind === 'bifurcation') return { sortie: 'Bifurcation fermée', oblig: 'Bifurcation obligatoire', entree: 'Entrée interdite', deux: 'Entrée interdite + bifurcation obligatoire', tout: 'Tout fermer' }[k];
+  if (p.kind === 'aire') return { sortie: 'Accès à l\'aire fermé', oblig: 'Passage par l\'aire obligatoire', entree: 'Sortie de l\'aire fermée', deux: 'Aire : sortie fermée + passage obligatoire', tout: 'Tout fermer' }[k];
+  return k === 'tout' ? 'Tout fermer' : GESTES.find(g => g.k === k).txt;
+}
+const KIND = { echangeur: 'Échangeur', aire: 'Aire', bifurcation: 'Bifurcation', entree: 'Entrée', autre: 'Sortie sans numéro', peage: 'Péage' };
+const etat = { route: null, D: null, G: null, K: 0, ref: null, rangs: [], sCam: null, actif: -1, aires: true };
+const VOISINS = {};
+let RESEAU = null, VILLES = null;
+
+/* ================= Géométrie : mètres, nord en haut ================= */
+let LON0 = 0, LAT0 = 0, CX = 1;
+const m = p => [(p[0] - LON0) * 111320 * CX, -(p[1] - LAT0) * 110570];
+const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+const COUPURE_LONGUE = 3000;   // au-delà, une interruption se franchit en un court défilement
+const COUPURE_DEFIL = 1200;    // … équivalent à 1,2 km de route
+
+/* Chaussée de référence : elle part du bout nord (de l'ouest pour un axe franchement est-ouest ; une boucle part du
+   nord, sens horaire). Les morceaux sont mis bout à bout ; chaque interruption est notée (abscisses s0 → s1). */
+function reference(G) {
+  const ch = G.chaussees.map(parts => parts.map(pt => pt.map(m)));
+  const idx = ch.map((p, i) => p.length ? i : -1).filter(i => i >= 0);
+  const bouts = parts => [parts[0][0], parts[parts.length - 1][parts[parts.length - 1].length - 1]];
+  const [a, b] = bouts(ch[idx[0]]);
+  let k = idx[0], sens = 1;
+  const boucle = dist(a, b) < 3000;
+  if (boucle) {
+    const ki = etat.D.chaussees.findIndex(c => /int/i.test(c.vers));
+    if (ki >= 0 && ch[ki] && ch[ki].length) k = ki;
+  } else {
+    const nordSud = 2 * Math.abs(a[1] - b[1]) >= Math.abs(a[0] - b[0]);
+    const debut = nordSud ? (a[1] < b[1] ? a : b) : (a[0] < b[0] ? a : b);
+    if (debut !== a) {
+      const autre = idx.find(i => i !== idx[0]);
+      if (autre != null && dist(bouts(ch[autre])[0], debut) < dist(bouts(ch[autre])[1], debut)) k = autre;
+      else sens = -1;
+    }
+  }
+  let parts = ch[k];
+  if (sens < 0) parts = parts.map(p => p.slice().reverse()).reverse();
+  if (boucle && parts.length === 1) {
+    const p = parts[0]; let i0 = 0; p.forEach((q, i) => { if (q[1] < p[i0][1]) i0 = i; });
+    parts = [p.slice(i0).concat(p.slice(1, i0 + 1))];
+  }
+  const pts = [], S = [], coupures = [];
+  parts.forEach((p, j) => {
+    p.forEach((q, i) => {
+      if (pts.length) S.push(S[S.length - 1] + dist(pts[pts.length - 1], q)); else S.push(0);
+      if (j && i === 0) coupures.push({ s0: S[S.length - 2], s1: S[S.length - 1] });
+      pts.push(q);
+    });
+  });
+  const L = S[S.length - 1];
+  // défilement : 1 m de route = 1 m de défilement, sauf les longues interruptions, ramassées
+  const zones = []; let s = 0, sig = 0;
+  for (const c of coupures) {
+    zones.push({ s0: s, s1: c.s0, g0: sig, g1: sig + c.s0 - s }); sig += c.s0 - s;
+    const l = c.s1 - c.s0 > COUPURE_LONGUE ? COUPURE_DEFIL : c.s1 - c.s0;
+    zones.push({ s0: c.s0, s1: c.s1, g0: sig, g1: sig + l }); sig += l; s = c.s1;
+  }
+  zones.push({ s0: s, s1: L, g0: sig, g1: sig + L - s }); sig += L - s;
+  return { k, pts, S, L, coupures, zones, sigma: sig, boucle };
+}
+const sDeSig = (ref, g) => { const z = ref.zones.find(z => g <= z.g1) || ref.zones[ref.zones.length - 1]; return z.s0 + (z.s1 - z.s0) * ((g - z.g0) / ((z.g1 - z.g0) || 1)); };
+const sigDeS = (ref, s) => { const z = ref.zones.find(z => s <= z.s1) || ref.zones[ref.zones.length - 1]; return z.g0 + (z.g1 - z.g0) * ((s - z.s0) / ((z.s1 - z.s0) || 1)); };
+// position et direction à l'abscisse s (direction lissée sur ±150 m : les bretelles ne suivent pas chaque pli)
+function aS(ref, s) {
+  s = Math.max(0, Math.min(ref.L, s));
+  const pos = x => {
+    x = Math.max(0, Math.min(ref.L, x));
+    let lo = 0, hi = ref.S.length - 1;
+    while (hi - lo > 1) { const mi = (lo + hi) >> 1; if (ref.S[mi] <= x) lo = mi; else hi = mi; }
+    const a = ref.pts[lo], b = ref.pts[hi], t = (x - ref.S[lo]) / ((ref.S[hi] - ref.S[lo]) || 1);
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  };
+  const p = pos(s), a = pos(s - 150), b = pos(s + 150), l = dist(a, b) || 1;
+  return { x: p[0], y: p[1], tx: (b[0] - a[0]) / l, ty: (b[1] - a[1]) / l };
+}
+function projeter(ref, q) {
+  let best = 1e18, sb = 0;
+  for (let i = 1; i < ref.pts.length; i++) {
+    const a = ref.pts[i - 1], b = ref.pts[i], dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy || 1e-9;
+    const t = Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2));
+    const d = Math.hypot(q[0] - a[0] - t * dx, q[1] - a[1] - t * dy);
+    if (d < best) { best = d; sb = ref.S[i - 1] + t * Math.sqrt(L2); }
+  }
+  return sb;
+}
+// polyligne décalée de o px (à droite du sens de la référence si o > 0)
+function decaler(P, o) {
+  const out = [];
+  for (let i = 0; i < P.length; i++) {
+    const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)];
+    const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nx = -(b[1] - a[1]) / l, ny = (b[0] - a[0]) / l;
+    out.push([P[i][0] + nx * o, P[i][1] + ny * o]);
+  }
+  return out;
+}
+function simplifierPx(P, tol) {
+  if (P.length < 3) return P;
+  const garde = new Uint8Array(P.length); garde[0] = garde[P.length - 1] = 1;
+  const pile = [[0, P.length - 1]];
+  while (pile.length) {
+    const [a, b] = pile.pop(), [ax, ay] = P[a], [bx, by] = P[b], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1e-9;
+    let dm = -1, im = -1;
+    for (let i = a + 1; i < b; i++) { const t = Math.max(0, Math.min(1, ((P[i][0] - ax) * dx + (P[i][1] - ay) * dy) / L2)); const d = Math.hypot(P[i][0] - ax - t * dx, P[i][1] - ay - t * dy); if (d > dm) { dm = d; im = i; } }
+    if (dm > tol) { garde[im] = 1; pile.push([a, im], [im, b]); }
+  }
+  return P.filter((_, i) => garde[i]);
+}
+
+/* ================= Un rang = un échangeur, ses deux sens réunis ================= */
+const pRang = r => r.a || r.b;
+function construireRangs() {
+  const { D, ref } = etat, cache = p => !etat.aires && (p.kind === 'aire' || p.kind === 'peage');
+  const ancre = p => { for (const k of ['sortie', 'entree', 'oblig', 'tout', 'deux']) if (p.f[k]) return p.f[k].c; return null; };
+  // un même bout vu des deux sens (« X (sortie seule) » / « X (entrée seule) », « Fin » / « Début de l’autoroute »,
+  // « Vers » / « Depuis la N296 ») se retrouve par son nom ainsi ramené
+  const nomCle = n => (n || '').replace(/\s*\((?:entrée|sortie) seule\)$/, '').replace(/^(?:Début|Fin) de l’autoroute$/, '·bout').replace(/^(?:Depuis|Vers) /, '');
+  const cle = p => p.kind === 'echangeur' && p.num ? 'n' + p.num : p.kind === 'echangeur' && p.nom ? 'x' + nomCle(p.nom) : p.kind === 'bifurcation' ? 'b' + (p.nom || '').split(/[: ]/)[0] : (p.kind === 'aire' || p.kind === 'peage') ? 'a' + p.nom : null;
+  const out = [];
+  const ordre = D.chaussees.map((c, ci) => ci).sort((x, y) => (y === ref.k) - (x === ref.k));
+  for (const ci of ordre) {
+    const cote = ci === ref.k ? 'a' : 'b';
+    for (const p of D.chaussees[ci].points) {
+      if (cache(p)) continue;
+      const q = ancre(p);
+      const s = q ? projeter(ref, m(q)) : (cote === 'a' ? p.km * 1000 : ref.L - p.km * 1000);
+      const k = cle(p);
+      const r = cote === 'b' && k && out.find(x => x.a && cle(x.a) === k && !x.b && Math.abs(x.s - s) < 3000);
+      if (r) { r.b = p; r.s = (r.s + s) / 2; } else out.push({ s, a: cote === 'a' ? p : null, b: cote === 'b' ? p : null });
+    }
+  }
+  return out.sort((x, y) => x.s - y.s);
+}
+
+/* ================= Dessin ================= */
+const O = 13, H = 30;   // demi-écart entre les deux chaussées ; demi-longueur d'un échangeur (px, comme la vue verticale)
+const pl = (P, cls, extra) => '<polyline class="' + cls + '"' + (extra || '') + ' points="' + P.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ') + '"/>';
+function pastille(q) {
+  const k = q.kind;
+  if (k === 'echangeur' && q.num) return ['', q.num];
+  if (k === 'aire') return ['aire', 'P'];
+  if (k === 'peage') return ['autre', '€'];
+  if (k === 'bifurcation') return ['bif', (q.nom || '').split(/[: ]/)[0].slice(0, 6)];
+  return ['autre', k === 'entree' ? '↘' : '·'];
+}
+async function voisins() {
+  const [x0, y0, x1, y1] = etat.boite, mg = 30000;
+  const dedans = ([x, y]) => x > x0 - mg && x < x1 + mg && y > y0 - mg && y < y1 + mg;
+  const liste = Object.entries(RESEAU).filter(([r, parts]) => r !== etat.route && parts.some(p => p.some(q => dedans(m(q)))));
+  await Promise.all(liste.map(async ([r]) => { if (!(r in VOISINS)) VOISINS[r] = await fetch('geo/' + encodeURIComponent(r) + '.json').then(x => x.json()).catch(() => null); }));
+  return liste.map(([r]) => [r, VOISINS[r]]).filter(([, g]) => g && g.chaussees[0]);
+}
+function dessiner() {
+  const { ref, D } = etat, k = etat.K, X = q => [q[0] * k, q[1] * k];
+  const [x0, y0, x1, y1] = etat.boite, mg = 30000;
+  const dedans = ([x, y]) => x > x0 - mg && x < x1 + mg && y > y0 - mg && y < y1 + mg;
+  let h = '';
+  // fond : autoroutes voisines et villes
+  for (const [r, g] of etat.voisins) {
+    for (const p of g.chaussees[0]) h += pl(simplifierPx(p.map(m).map(X), 1.2), 'voisin');
+    const vis = g.chaussees[0].flat().map(m).filter(dedans);
+    if (vis.length) {
+      const q = X(vis[Math.floor(vis.length / 2)]), nom = r.replace(/^anneau-/, '⟳ ').replace(/-/g, ' '), w = 14 + nom.length * 7;
+      h += '<g class="voisin-c" transform="translate(' + q[0].toFixed(1) + ',' + q[1].toFixed(1) + ')"><rect x="' + (-w / 2) + '" y="-10" width="' + w + '" height="20" rx="5"/><text>' + esc(nom) + '</text></g>';
+    }
+  }
+  for (const [nom, lon, lat, pop] of VILLES) {
+    const q = m([lon, lat]); if (!dedans(q)) continue;
+    if (pop < 15000 && k < 0.05) continue;
+    const Q = X(q);
+    h += '<g class="ville' + (pop > 60000 ? ' grande' : '') + '" transform="translate(' + Q[0].toFixed(1) + ',' + Q[1].toFixed(1) + ')"><circle r="' + (pop > 60000 ? 4.5 : 3) + '"/><text x="8" y="4">' + esc(nom) + '</text></g>';
+  }
+  // l'autoroute : deux chaussées parallèles (comme la vue verticale), qui suivent le tracé ; interruptions en pointillé
+  const morceaux = []; let deb = 0;
+  for (const c of ref.coupures) { morceaux.push([deb, c.s0]); deb = c.s1; }
+  morceaux.push([deb, ref.L]);
+  for (const [s0, s1] of morceaux) {
+    const P = simplifierPx(ref.pts.filter((_, i) => ref.S[i] >= s0 - 1 && ref.S[i] <= s1 + 1).map(X), 0.8);
+    if (P.length < 2) continue;
+    for (const o of [O, -O]) { const Q = decaler(P, o); h += pl(Q, 'voie') + pl(Q, 'voie-trait'); }
+  }
+  for (const c of ref.coupures) {
+    const a = aS(ref, c.s0), b = aS(ref, c.s1), A = [a.x * k, a.y * k], B = [b.x * k, b.y * k], km = (c.s1 - c.s0) / 1000;
+    h += pl([A, B], 'coupure');
+    // le libellé au début ET à la fin de l'interruption : on le voit en y arrivant, dans les deux sens de lecture
+    const L = Math.hypot(B[0] - A[0], B[1] - A[1]) || 1, ux = (B[0] - A[0]) / L, uy = (B[1] - A[1]) / L;
+    if (km >= 1) for (const [Q, d] of [[A, 1], [B, -1]]) h += '<text class="coupure-lib" x="' + (Q[0] + ux * d * Math.min(70, L / 3) + 14).toFixed(1) + '" y="' + (Q[1] + uy * d * Math.min(70, L / 3) + 4).toFixed(1) + '">Autoroute interrompue · ≈ ' + Math.round(km) + ' km sans tracé</text>';
+  }
+  // flèches de sens, tous les 2 km environ à l'écran
+  const pas = Math.max(2000, 260 / k);
+  for (let s = pas / 2; s < ref.L; s += pas) {
+    if (ref.coupures.some(c => s > c.s0 && s < c.s1)) continue;
+    const p = aS(ref, s), C = [p.x * k, p.y * k], nx = -p.ty, ny = p.tx;
+    const fl = (o, d) => { const cx = C[0] + nx * o, cy = C[1] + ny * o, ux = p.tx * d, uy = p.ty * d; return '<path class="fleche" d="M' + (cx + ux * 5).toFixed(1) + ' ' + (cy + uy * 5).toFixed(1) + ' L' + (cx - ux * 3 + nx * 4).toFixed(1) + ' ' + (cy - uy * 3 + ny * 4).toFixed(1) + ' L' + (cx - ux * 3 - nx * 4).toFixed(1) + ' ' + (cy - uy * 3 - ny * 4).toFixed(1) + 'z"/>'; };
+    h += fl(O, 1) + fl(-O, -1);
+  }
+  // bouts : où mène chaque chaussée
+  const ca = D.chaussees[ref.k], cb = D.chaussees.find((c, i) => i !== ref.k);
+  if (!ref.boucle) {
+    const d0 = aS(ref, 0), d1 = aS(ref, ref.L);
+    h += '<g class="bout"><text x="' + (d0.x * k - d0.tx * 46).toFixed(1) + '" y="' + (d0.y * k - d0.ty * 46 + 4).toFixed(1) + '">' + esc(cb ? '↑ vers ' + cb.vers : 'Début') + '</text>'
+      + '<text x="' + (d1.x * k + d1.tx * 46).toFixed(1) + '" y="' + (d1.y * k + d1.ty * 46 + 4).toFixed(1) + '">↓ vers ' + esc(ca.vers) + '</text></g>';
+  }
+  // échangeurs : bretelles dessinées comme dans la vue verticale, tournées selon la route ; noms de chaque sens sur son côté
+  const places = [];
+  const chevauche = b => places.some(c => b[0] < c[0] + c[2] && b[0] + b[2] > c[0] && b[1] < c[1] + c[3] && b[1] + b[3] > c[1]);
+  const etiquette = (p, C, nx, ny, ecart, i, cote, force) => {
+    const nom = p.nom || '', dest = !loin && p.dest && p.dest.length && p.dest.join(' · ') !== nom ? p.dest.slice(0, 2).join(' · ') : '';
+    const w = Math.max(nom.length * 7.4, dest.length * 6.2, 30), hh = dest ? 32 : 18;
+    const anc = nx > 0.4 ? 'start' : nx < -0.4 ? 'end' : 'middle';
+    const essais = loin ? 4 : 9;
+    for (let n = 0; n < essais; n++) {
+      const e = ecart + n * 16, lx = C[0] + nx * e, ly = C[1] + ny * e + (Math.abs(ny) > 0.6 ? (ny > 0 ? 10 : -hh + 8) : 0) + (Math.abs(ny) <= 0.6 ? n * 14 * (n % 2 ? 1 : -1) : 0);
+      const b = [anc === 'start' ? lx : anc === 'end' ? lx - w : lx - w / 2, ly - 13, w, hh];
+      if (!force && n < essais - 1 && chevauche(b)) continue;
+      if (loin && !force && chevauche(b)) return '';
+      places.push(b);
+      return '<g class="etiq" data-i="' + i + '" data-c="' + cote + '"><text class="n" x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" text-anchor="' + anc + '">' + esc(nom) + '</text>'
+        + (dest ? '<text class="d" x="' + lx.toFixed(1) + '" y="' + (ly + 15).toFixed(1) + '" text-anchor="' + anc + '">' + esc(dest) + '</text>' : '') + '</g>';
+    }
+    return '';
+  };
+  const geste = (r, cote, kk, d, i) => { const p = r[cote], l = p && p.f[kk]; if (!p) return ''; return '<path class="geste' + (kk === 'oblig' ? ' tronc' : '') + (l ? '' : ' absent') + '" d="' + d + '" data-i="' + i + '" data-c="' + cote + '" data-k="' + kk + '"/>'; };
+  // les pastilles d'abord (elles ont priorité), puis les noms
+  const vus = etat.rangs.map((r, i) => ({ r, i, P: aS(ref, r.s) }));
+  // place libre autour d'un rang : distance au rang voisin qui occupe le même côté (deux aires face à face, chacune
+  // d'un seul côté, ne se gênent pas)
+  const serre = vus.map((v, j) => {
+    let d = 1e9;
+    for (const w of [vus[j - 1], vus[j + 1], vus[j - 2], vus[j + 2]]) if (w && ((v.r.a && w.r.a) || (v.r.b && w.r.b))) d = Math.min(d, Math.abs(w.r.s - v.r.s) * k);
+    return d;
+  });
+  // ordre de placement : l'actif d'abord, puis les échangeurs numérotés, les bifurcations, le reste, les aires et
+  // péages en dernier (les derniers placés sont ceux qu'on décale)
+  const loin = $('scene').clientHeight / k > 40000;
+  const rangKind = q => q.kind === 'echangeur' && q.num ? 0 : q.kind === 'bifurcation' ? 1 : q.kind === 'aire' || q.kind === 'peage' ? 3 : 2;
+  const ordre = vus.map((v, j) => j).sort((x, y) => (y === etat.actif) - (x === etat.actif) || rangKind(pRang(vus[x].r)) - rangKind(pRang(vus[y].r)));
+  // rien n'est posé sur les voies : elles restent libres au survol et au clic ; les marqueurs vont sur le côté
+  const montre = new Set(vus.map((v, j) => j));
+  // marqueur d'un sens, au bout de sa bretelle de sortie (à défaut d'entrée) : le vrai cartouche numéroté pour un
+  // échangeur, la route pour une bifurcation, P pour une aire ; rien sur les voies, qui restent libres au clic
+  const marques = {};
+  const marque = (p, cote, C, P, i, plein) => {
+    const [cls, txt] = pastille(p);
+    // un numéro de sortie n'a de sens que là où l'on sort ; sinon un simple point, pour pouvoir cliquer
+    const point = (cls === 'autre' && p.kind !== 'peage') || (cls === '' && !p.f.sortie);
+    const sg = cote === 'a' ? 1 : -1;
+    // avec la place : au bout de la bretelle de sortie (à défaut d'entrée) ; serré : juste à côté de la chaussée
+    const u = plein ? sg * (p.f.sortie || !p.f.entree ? -(H - 22) : H - 22) : 0, v = sg * (plein ? O + 64 : O + 22);
+    const x0 = C[0] + u * P.tx - v * P.ty, y0 = C[1] + u * P.ty + v * P.tx;
+    const pic = point ? 0 : cls === '' ? 16 : 0, w = point ? 10 : pic + Math.max(22, String(txt).length * 8.2 + 12), hh = point ? 10 : 24;
+    // deux points au même endroit : le second est décalé le long de la route, puis vers l'extérieur ; jamais caché
+    let x = x0, y = y0;
+    for (const [du, dv] of [[0, 0], [1, 0], [-1, 0], [0, 1], [1, 1], [-1, 1], [2, 0], [-2, 0], [0, 2], [2, 1], [-2, 1], [0, 3]]) {
+      const dU = du * (w + 8) * sg, dV = dv * (hh + 8) * sg;
+      x = x0 + dU * P.tx - dV * P.ty; y = y0 + dU * P.ty + dV * P.tx;
+      if (!chevauche([x - w / 2 - 2, y - hh / 2 - 2, w + 4, hh + 4])) break;
+    }
+    places.push([x - w / 2 - 2, y - hh / 2 - 2, w + 4, hh + 4]);
+    const trait = Math.hypot(x - x0, y - y0) > 2 ? '<line x1="' + x0.toFixed(1) + '" y1="' + y0.toFixed(1) + '" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="var(--doux)" stroke-width="1" stroke-dasharray="2 2"/>' : '';
+    if (point) return '<g class="cs autre" data-i="' + i + '" data-c="' + cote + '">' + trait + '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="5" fill="var(--doux)" stroke="var(--fond)" stroke-width="2"/></g>';
+    return '<g class="cs ' + cls + '" data-i="' + i + '" data-c="' + cote + '">' + trait + '<rect x="' + (x - w / 2).toFixed(1) + '" y="' + (y - hh / 2).toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + hh + '" rx="5"/>'
+      + (pic ? '<path d="M' + (x - w / 2 + 5).toFixed(1) + ' ' + (y + 6).toFixed(1) + ' l7 -10 m-5 0 h5 v5"/>' : '')
+      + '<text x="' + (x - w / 2 + pic + (w - pic) / 2).toFixed(1) + '" y="' + y.toFixed(1) + '" text-anchor="middle">' + esc(txt) + '</text></g>';
+  };
+  for (const j of ordre) {
+    const v = vus[j]; if (!v) continue;
+    const C = [v.P.x * k, v.P.y * k], plein = serre[j] > 2 * H + 10;
+    marques[v.i] = (v.r.a ? marque(v.r.a, 'a', C, v.P, v.i, plein) : '') + (v.r.b ? marque(v.r.b, 'b', C, v.P, v.i, plein) : '');
+  }
+  const etiqs = {};
+  for (const j of ordre) {
+    const v = vus[j]; if (!v || !montre.has(j)) continue;
+    const { r, i, P } = v, C = [P.x * k, P.y * k], nx = -P.ty, ny = P.tx, plein = serre[j] > 2 * H + 10;
+    const ec = plein ? O + 92 : O + 50;
+    etiqs[i] = (r.a ? etiquette(r.a, C, nx, ny, ec, i, 'a', i === etat.actif) : '') + (r.b ? etiquette(r.b, C, -nx, -ny, ec, i, 'b', i === etat.actif) : '');
+  }
+  vus.forEach(({ r, i, P }, j) => {
+    if (!montre.has(j)) return;
+    const C = [P.x * k, P.y * k], q = pRang(r), [cls, txt] = pastille(q), plein = serre[j] > 2 * H + 10;
+    let g = '<g class="rang' + (i === etat.actif ? ' actif' : '') + '" data-i="' + i + '">';
+    if (i === etat.actif) g += '<circle class="halo" cx="' + C[0].toFixed(1) + '" cy="' + C[1].toFixed(1) + '" r="' + (plein ? 62 : 30) + '"/>';
+    if (plein) {
+      // repère local : u le long de la référence, v vers sa droite ; la chaussée a est à v = +O, la b à v = −O
+      g += '<g transform="matrix(' + [P.tx, P.ty, -P.ty, P.tx, C[0], C[1]].map(x => x.toFixed(4)).join(',') + ')">'
+        + geste(r, 'a', 'oblig', 'M' + (-H) + ' ' + O + ' L' + H + ' ' + O, i)
+        + geste(r, 'a', 'sortie', 'M' + (-H) + ' ' + O + ' C ' + (-H + 14) + ' ' + (O + 8) + ', ' + (-H + 16) + ' ' + (O + 26) + ', ' + (-H + 22) + ' ' + (O + 48), i)
+        + geste(r, 'a', 'entree', 'M' + (H - 22) + ' ' + (O + 48) + ' C ' + (H - 16) + ' ' + (O + 26) + ', ' + (H - 14) + ' ' + (O + 8) + ', ' + H + ' ' + O, i)
+        + geste(r, 'b', 'oblig', 'M' + H + ' ' + (-O) + ' L' + (-H) + ' ' + (-O), i)
+        + geste(r, 'b', 'sortie', 'M' + H + ' ' + (-O) + ' C ' + (H - 14) + ' ' + (-O - 8) + ', ' + (H - 16) + ' ' + (-O - 26) + ', ' + (H - 22) + ' ' + (-O - 48), i)
+        + geste(r, 'b', 'entree', 'M' + (-H + 22) + ' ' + (-O - 48) + ' C ' + (-H + 16) + ' ' + (-O - 26) + ', ' + (-H + 14) + ' ' + (-O - 8) + ', ' + (-H) + ' ' + (-O), i)
+        + '</g>';
+    }
+    g += marques[i] || '';
+    g += (etiqs[i] || '') + '</g>';
+    h += g;
+  });
+  $('monde').innerHTML = h;
+  $('piste').style.height = (ref.sigma * k + $('scene').clientHeight) + 'px';
+  const kmEcran = $('scene').clientHeight / k / 1000;
+  $('echelle').textContent = (kmEcran < 10 ? kmEcran.toFixed(1) : Math.round(kmEcran)) + ' km';
+}
+
+/* ================= Défilement ================= */
+const cibleS = () => sDeSig(etat.ref, Math.max(0, Math.min(etat.ref.sigma, scrollY / etat.K)));
+const allerS = (s, doux) => scrollTo({ top: sigDeS(etat.ref, s) * etat.K, behavior: doux ? 'smooth' : 'instant' });
+function boucle() {
+  if (etat.ref && etat.K) {
+    const s = cibleS();
+    etat.sCam = etat.sCam == null ? s : etat.sCam + (s - etat.sCam) * 0.25;
+    if (Math.abs(etat.sCam - s) * etat.K < 0.3) etat.sCam = s;
+    const p = aS(etat.ref, etat.sCam), sc = $('scene');
+    $('monde').style.transform = 'translate(' + (sc.clientWidth / 2 - p.x * etat.K).toFixed(1) + 'px,' + (sc.clientHeight * 0.45 - p.y * etat.K).toFixed(1) + 'px)';
+    $('prog').style.width = (100 * etat.sCam / (etat.ref.L || 1)) + '%';
+    $('pos').innerHTML = '<b>km ' + (etat.sCam / 1000).toFixed(1) + '</b> sur ' + Math.round(etat.ref.L / 1000);
+    majMiniIci(p);
+    let best = -1, d = 1e18;
+    etat.rangs.forEach((r, i) => { const e = Math.abs(r.s - etat.sCam); if (e < d) { d = e; best = i; } });
+    // le panneau suit l'échangeur le plus proche du centre, sauf pendant une saisie d'administration
+    if (best !== etat.actif && !document.querySelector('#detail .saisie')) { etat.actif = best; marquer(); detail(); }
+  }
+  requestAnimationFrame(boucle);
+}
+function marquer() {
+  // la classe « actif » change sans tout redessiner ; les étiquettes de l'actif sont recalculées au prochain dessin
+  document.querySelectorAll('.rang.actif').forEach(e => e.classList.remove('actif'));
+  const g = document.querySelector('.rang[data-i="' + etat.actif + '"]'); if (g) { g.classList.add('actif'); g.parentNode.appendChild(g); }
+  clearTimeout(marquer.t); marquer.t = setTimeout(dessiner, 250);
+}
+
+/* ================= Panneau ================= */
+function bloc(p, ci) {
+  const c = etat.D.chaussees[ci];
+  if (!c) return '';
+  if (!p) return '<div class="bloc"><span class="panneau">→ ' + esc(c.vers) + '</span><div class="aide">Rien dans ce sens à cet endroit.</div>' + (window.FE_ADMIN ? FE_ADMIN.panneau(null, ci) : '') + '</div>';
+  return '<div class="bloc"><span class="panneau">→ ' + esc(c.vers) + '</span>' + (p.dest && p.dest.length ? '<div class="aide" style="margin:-4px 0 8px">Panneau : ' + esc(p.dest.join(', ')) + '</div>' : '')
+    + '<div class="actions">' + GESTES.map(g => { const l = p.f[g.k]; if (g.k === 'deux' && !l) return ''; return l ? '<a class="act' + (g.large ? ' large' : '') + '" target="_blank" rel="noopener" href="' + esc(lien(l)) + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></a>' : '<span class="act off' + (g.large ? ' large' : '') + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></span>'; }).join('')
+    + (p.f.tout ? '<a class="act large" style="border-color:var(--rouge)" target="_blank" rel="noopener" href="' + esc(lien(p.f.tout)) + '">' + ICO.interdit + ICO.interdit + '<span>Tout fermer : ' + esc(p.lib_tout || '') + '</span></a>' : '')
+    + '</div>' + (window.FE_ADMIN ? FE_ADMIN.panneau(p, ci) : '') + '</div>';
+}
+function detail() {
+  if (window.FE_ADMIN) FE_ADMIN.reset();
+  const r = etat.rangs[etat.actif];
+  if (!r) { $('detail').innerHTML = '<p class="aide">Faites défiler : la carte avance le long de l\'autoroute.</p>'; return; }
+  const q = pRang(r), [cls, txt] = pastille(q), kb = etat.D.chaussees.findIndex((c, i) => i !== etat.ref.k);
+  $('detail').innerHTML = '<h3><span class="num ' + cls + '">' + esc(txt) + '</span>' + esc(q.nom) + '</h3>'
+    + '<div class="sous">' + (KIND[q.kind] || '') + ' · km ' + (r.s / 1000).toFixed(1) + (q.nom_source ? ' · nom de l’échangeur d’après ' + (q.nom_source === 'lieu Waze' ? 'le lieu Waze' : esc(q.nom_source)) : '') + (q.source === 'connaissance locale' ? ' · nom arbitré (connaissance locale)' : '') + '</div>'
+    + bloc(r.a, etat.ref.k) + (kb >= 0 ? bloc(r.b, kb) : '')
+    + '<p class="aide">Survolez une bretelle sur la carte : un clic ouvre WME avec les segments sélectionnés. <kbd>↓</kbd> <kbd>↑</kbd> échangeur suivant ou précédent, <kbd>+</kbd> <kbd>−</kbd> ou <kbd>Ctrl</kbd> + molette pour le zoom.</p>';
+}
+
+/* ================= Carte d'ensemble ================= */
+let MINI = null;
+function dessinerMini() {
+  const W = $('mini').clientWidth, Hh = $('mini').clientHeight;
+  let lo0 = 180, la0 = 90, lo1 = -180, la1 = -90;
+  for (const p of Object.values(RESEAU).flat()) for (const [lo, la] of p) { lo0 = Math.min(lo0, lo); lo1 = Math.max(lo1, lo); la0 = Math.min(la0, la); la1 = Math.max(la1, la); }
+  const cx = Math.cos((la0 + la1) / 2 * Math.PI / 180), s = Math.min((W - 14) / ((lo1 - lo0) * cx), (Hh - 14) / (la1 - la0));
+  const ox = (W - (lo1 - lo0) * cx * s) / 2, oy = (Hh - (la1 - la0) * s) / 2;
+  const f = ([lo, la]) => [ox + (lo - lo0) * cx * s, oy + (la1 - la) * s];
+  MINI = { f, inv: (x, y) => [(x - ox) / (cx * s) + lo0, la1 - (y - oy) / s] };
+  const ligne = (p, c) => '<polyline class="' + c + '" points="' + p.map(f).map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ') + '"/>';
+  $('miniSvg').innerHTML = Object.entries(RESEAU).map(([r, ps]) => r === etat.route ? '' : ps.map(p => ligne(p, 'r')).join('')).join('')
+    + (RESEAU[etat.route] || []).map(p => ligne(p, 'moi')).join('') + '<circle class="ici" id="miniIci" r="4.5"/>';
+}
+function majMiniIci(p) {
+  const c = $('miniIci'); if (!c || !MINI) return;
+  const q = MINI.f([p.x / (111320 * CX) + LON0, -p.y / 110570 + LAT0]);
+  c.setAttribute('cx', q[0].toFixed(1)); c.setAttribute('cy', q[1].toFixed(1));
+}
+$('mini').onclick = ev => { const r = $('mini').getBoundingClientRect(); allerS(projeter(etat.ref, m(MINI.inv(ev.clientX - r.left, ev.clientY - r.top))), false); };
+
+/* ================= Zoom : curseur, boutons, + et −, Ctrl + molette (et pincement du pavé tactile) ================= */
+const KM_MIN = 1.5, KM_MAX = 400;   // hauteur de carte visible
+const kDeNiveau = n => $('scene').clientHeight / (1000 * KM_MAX * Math.pow(KM_MIN / KM_MAX, n / 100));
+const niveauDeK = k => 100 * Math.log($('scene').clientHeight / (1000 * k) / KM_MAX) / Math.log(KM_MIN / KM_MAX);
+function zoomer(k) {
+  k = Math.max(kDeNiveau(0), Math.min(kDeNiveau(100), k));
+  if (Math.abs(k - etat.K) / etat.K < 0.002) return;
+  const s = etat.sCam ?? cibleS();
+  etat.K = k; $('niveau').value = niveauDeK(k);
+  localStorage.setItem('fe-geo-zoom', String($('scene').clientHeight / k));
+  cancelAnimationFrame(zoomer.f);
+  zoomer.f = requestAnimationFrame(() => { dessiner(); etat.sCam = s; allerS(s, false); });
+}
+$('plus').onclick = () => zoomer(etat.K * 1.5);
+$('moins').onclick = () => zoomer(etat.K / 1.5);
+$('niveau').oninput = e => zoomer(kDeNiveau(+e.target.value));
+$('scene').addEventListener('wheel', ev => { if (!ev.ctrlKey) return; ev.preventDefault(); zoomer(etat.K * Math.exp(-ev.deltaY * 0.004)); }, { passive: false });
+
+/* ================= Survol et clic sur la carte ================= */
+const bulle = $('bulle');
+$('monde').addEventListener('pointermove', ev => {
+  const g = ev.target.closest('.geste');
+  document.querySelectorAll('.geste.vu').forEach(x => { if (x !== g) x.classList.remove('vu'); });
+  if (!g) { bulle.classList.remove('vu'); return; }
+  const r = etat.rangs[+g.dataset.i], p = r[g.dataset.c], k = g.dataset.k;
+  if (g.classList.contains('absent') || !p) bulle.innerHTML = 'Rien à fermer ici<small>' + ({ sortie: 'pas de sortie', entree: 'pas d\'entrée', oblig: 'pas de tronçon' }[k]) + ' dans ce sens</small>';
+  else {
+    const cumul = k === 'oblig' && ev.shiftKey && p.f.deux, c = etat.D.chaussees[g.dataset.c === 'a' ? etat.ref.k : etat.D.chaussees.findIndex((x, i) => i !== etat.ref.k)];
+    bulle.innerHTML = esc(texteGeste(cumul ? 'deux' : k, p)) + '<small>' + esc(p.nom) + ' · vers ' + esc(c.vers) + ' · ' + (cumul ? p.f.deux : p.f[k]).ids.length + ' segment(s) · clic : ouvrir WME' + (k === 'oblig' && p.f.deux && !cumul ? ' · Maj : + entrée interdite' : '') + '</small>';
+    g.classList.add('vu');
+  }
+  bulle.style.left = Math.min(innerWidth - 300, ev.clientX + 16) + 'px'; bulle.style.top = (ev.clientY + 16) + 'px'; bulle.classList.add('vu');
+});
+$('monde').addEventListener('pointerleave', () => { bulle.classList.remove('vu'); document.querySelectorAll('.geste.vu').forEach(x => x.classList.remove('vu')); });
+$('monde').addEventListener('click', ev => {
+  const g = ev.target.closest('.geste');
+  if (g && !g.classList.contains('absent')) {
+    const p = etat.rangs[+g.dataset.i][g.dataset.c], l = g.dataset.k === 'oblig' && ev.shiftKey && p.f.deux ? p.f.deux : p.f[g.dataset.k];
+    window.open(lien(l), '_blank', 'noopener'); return;
+  }
+  const e = ev.target.closest('[data-i]'); if (e) allerS(etat.rangs[+e.dataset.i].s, true);
+});
+document.addEventListener('keydown', ev => {
+  if (!etat.rangs.length || /input|select|textarea/i.test(document.activeElement.tagName)) return;
+  if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+    ev.preventDefault();
+    const s = cibleS(), r = ev.key === 'ArrowDown' ? etat.rangs.find(x => x.s > s + 30) : [...etat.rangs].reverse().find(x => x.s < s - 30);
+    if (r) allerS(r.s, true);
+  } else if (ev.key === '+' || ev.key === '=') zoomer(etat.K * 1.5);
+  else if (ev.key === '-') zoomer(etat.K / 1.5);
+});
+addEventListener('resize', () => { if (etat.ref) { dessiner(); dessinerMini(); } });
+
+/* ================= Chargement ================= */
+async function chargerD(route) { return fetch('d/' + encodeURIComponent(route) + '.json', { cache: 'no-store' }).then(x => x.json()); }
+async function charger(route) {
+  etat.route = route; etat.sCam = null; etat.actif = -1;
+  FE_VUES.route(route);
+  $('choix').value = route;
+  $('cart').textContent = route.startsWith('anneau-') ? '⟳' : route;
+  const [D, G] = await Promise.all([chargerD(route), fetch('geo/' + encodeURIComponent(route) + '.json').then(x => x.json())]);
+  etat.D = D; etat.G = G;
+  $('titre').innerHTML = '<small>' + esc(D.chaussees.map(c => c.vers).join(' ↔ ')) + '</small>';
+  const tous = G.chaussees.flat(2);
+  LON0 = tous.reduce((a, p) => a + p[0], 0) / tous.length; LAT0 = tous.reduce((a, p) => a + p[1], 0) / tous.length; CX = Math.cos(LAT0 * Math.PI / 180);
+  etat.ref = reference(G);
+  etat.boite = etat.ref.pts.reduce((b, [x, y]) => [Math.min(b[0], x), Math.min(b[1], y), Math.max(b[2], x), Math.max(b[3], y)], [1e18, 1e18, -1e18, -1e18]);
+  etat.rangs = construireRangs();
+  etat.voisins = await voisins();
+  const memo = +localStorage.getItem('fe-geo-zoom');
+  etat.K = $('scene').clientHeight / (memo > 0 ? memo : 7000);
+  $('niveau').value = niveauDeK(etat.K);
+  dessiner(); dessinerMini(); detail();
+  scrollTo({ top: 0, behavior: 'instant' });
+}
+$('choix').onchange = e => charger(e.target.value);
+$('aires').onchange = e => { etat.aires = e.target.checked; const s = cibleS(); etat.rangs = construireRangs(); etat.actif = -1; dessiner(); allerS(s, false); };
+
+// pour le mode administration (admin.js, servi seulement par admin.py sur le poste de l'auteur)
+window.GEO = {
+  route: () => etat.route,
+  vers: ci => (etat.D.chaussees[ci] || {}).vers,
+  recharger: async () => {
+    const s = cibleS();
+    etat.D = await chargerD(etat.route);
+    etat.rangs = construireRangs(); etat.actif = -1;
+    dessiner(); etat.sCam = s; allerS(s, false);
+  },
+  // kilomètre d'un nouveau point dans ce sens : interpolé entre les points voisins de ce sens
+  km: (p, ci) => {
+    if (p) return p.km + 0.1;
+    const s = etat.rangs[etat.actif] ? etat.rangs[etat.actif].s : cibleS(), cote = ci === etat.ref.k ? 'a' : 'b';
+    const pts = etat.rangs.filter(r => r[cote]).map(r => [r.s, r[cote].km]);
+    const av = pts.filter(x => x[0] <= s).pop(), ap = pts.find(x => x[0] > s);
+    if (av && ap) return av[1] + (ap[1] - av[1]) * (s - av[0]) / ((ap[0] - av[0]) || 1);
+    return av ? av[1] : ap ? ap[1] : 0;
+  },
+  rafraichir: () => detail(),
+};
+
+(async () => {
+  [RESEAU, VILLES] = await Promise.all([fetch('geo/_reseau.json').then(x => x.json()), fetch('geo/_villes.json').then(x => x.json())]);
+  const cle = r => r.startsWith('anneau-') ? [1, 0, r] : [0, parseInt(r.slice(1), 10) || 0, r];
+  const routes = Object.keys(RESEAU).sort((a, b) => { const x = cle(a), y = cle(b); return x[0] - y[0] || x[1] - y[1] || (x[2] < y[2] ? -1 : 1); });
+  $('choix').innerHTML = routes.map(r => '<option value="' + esc(r) + '">' + esc(r.replace(/^anneau-/, '⟳ ').replace(/-/g, ' ')) + '</option>').join('');
+  // la dernière autoroute vue (ou celle de l'adresse ?r=…), commune aux trois vues
+  FE_VUES.init('carte');
+  await charger(FE_VUES.depart(routes, 'A7'));
+  requestAnimationFrame(boucle);
+})();
+</script>
+</body>
+</html>

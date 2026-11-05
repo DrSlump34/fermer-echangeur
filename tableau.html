@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fermer un échangeur · tableau</title>
+<style>
+:root {
+  --fond: #f4f6fa; --surface: #ffffff; --surface-2: #eef1f6; --bord: #dde3ec; --texte: #0e1726; --doux: #5b6779;
+  --accent: #2563eb; --rouge: #e11d2e; --vert: #10b981; --panneau: #1f4fbf; --cartouche: #d91c2a;
+  --ombre: 0 1px 2px rgb(15 23 42 / .06), 0 8px 24px rgb(15 23 42 / .08); --r: 14px; --t: 160ms cubic-bezier(.2,.7,.2,1);
+}
+@media (prefers-color-scheme: dark) {
+  :root { --fond: #0b1220; --surface: #111a2b; --surface-2: #162236; --bord: #23324a; --texte: #e6ecf5; --doux: #93a1b8; --accent: #60a5fa;
+    --ombre: 0 1px 2px rgb(0 0 0 / .3), 0 12px 32px rgb(0 0 0 / .35); }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; }
+body { font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--texte); background: var(--fond); }
+button, input, select { font: inherit; color: inherit; }
+kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px solid var(--bord); border-bottom-width: 2px; border-radius: 6px; background: var(--surface); color: var(--doux); }
+
+/* ----- barre ----- */
+.barre { position: sticky; top: 0; z-index: 20; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 18px; border-bottom: 1px solid var(--bord); background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: saturate(1.4) blur(14px); }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 800; white-space: nowrap; }
+.logo svg { width: 28px; height: 28px; }
+.choix { display: flex; align-items: center; gap: 8px; }
+select, .q { padding: 6px 12px; border: 1px solid var(--bord); border-radius: 10px; background: var(--surface); }
+#choix { appearance: none; padding-right: 30px; font-weight: 700; cursor: pointer; background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2393a1b8' stroke-width='3'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 10px center; }
+.q { min-width: 220px; outline: none; } .q:focus { border-color: var(--accent); }
+.cartouche { display: inline-grid; place-items: center; min-width: 46px; height: 30px; padding: 0 9px; border-radius: 7px; background: var(--cartouche); color: #fff; font-weight: 800; box-shadow: inset 0 0 0 2px rgb(255 255 255 / .9), 0 0 0 1px var(--cartouche); }
+.esp { flex: 1; }
+.puce { display: flex; align-items: center; gap: 7px; padding: 6px 12px; border: 1px solid var(--bord); border-radius: 999px; background: var(--surface); font-size: 13px; cursor: pointer; white-space: nowrap; }
+.puce input { accent-color: var(--accent); }
+
+/* ----- tableau ----- */
+main { padding: 16px 18px 60px; }
+.entete { display: flex; align-items: baseline; gap: 12px; margin: 4px 2px 12px; }
+.entete h1 { margin: 0; font-size: 20px; }
+.entete .meta { color: var(--doux); font-size: 13px; }
+.cadre { overflow-x: auto; border: 1px solid var(--bord); border-radius: var(--r); background: var(--surface); box-shadow: var(--ombre); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-2); color: var(--doux); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--bord); white-space: nowrap; }
+thead th.tri { cursor: pointer; user-select: none; } thead th.tri:hover { color: var(--texte); }
+thead th .fl { opacity: .5; font-size: 10px; margin-left: 4px; }
+thead th.act, td.act { text-align: center; width: 1%; }
+tbody td { padding: 6px 10px; border-bottom: 1px solid var(--bord); vertical-align: middle; }
+tbody tr { cursor: pointer; transition: background var(--t); }
+tbody tr:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+tbody tr.sel { background: color-mix(in srgb, var(--accent) 13%, transparent); }
+tbody tr.suite td { border-top: 0; }
+tbody tr.premier td { border-top: 1px solid var(--bord); }
+td.nom b { font-weight: 650; } td.nom small { display: block; color: var(--doux); font-size: 12px; }
+td.km { color: var(--doux); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.num { display: inline-grid; place-items: center; min-width: 34px; height: 26px; padding: 0 6px; border-radius: 6px; background: #fff; color: #111; font-weight: 800; font-size: 13px; box-shadow: 0 0 0 2px #111; }
+.num.aire { background: var(--vert); color: #fff; box-shadow: none; } .num.bif { background: var(--cartouche); color: #fff; box-shadow: none; font-size: 11px; } .num.autre { background: var(--surface-2); color: var(--doux); box-shadow: 0 0 0 1px var(--bord); }
+.panneau { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 7px; background: var(--panneau); color: #fff; font-weight: 700; font-size: 12.5px; white-space: nowrap; box-shadow: inset 0 0 0 2px rgb(255 255 255 / .85), 0 0 0 1px var(--panneau); }
+.b { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 40px; height: 34px; padding: 0 8px; border: 1px solid var(--bord); border-radius: 9px; background: var(--surface-2); color: var(--texte); text-decoration: none; font-size: 12px; font-weight: 650; white-space: nowrap; transition: border-color var(--t), transform var(--t); }
+.b:hover { border-color: var(--rouge); transform: translateY(-1px); }
+.b svg { width: 20px; height: 20px; flex: none; }
+.b.tout { border-color: color-mix(in srgb, var(--rouge) 45%, var(--bord)); }
+.vide { color: var(--bord); }
+.rien { padding: 40px; text-align: center; color: var(--doux); }
+.aide { color: var(--doux); font-size: 13px; }
+
+/* ----- panneau du point choisi ----- */
+#detail { position: fixed; top: 0; right: 0; bottom: 0; width: 400px; max-width: 100vw; overflow: auto; padding: 18px; border-left: 1px solid var(--bord); background: var(--surface); box-shadow: var(--ombre); z-index: 30; transform: translateX(105%); transition: transform var(--t); }
+#detail.vu { transform: none; }
+#detail h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 4px; font-size: 19px; padding-right: 36px; }
+#detail .sous { color: var(--doux); font-size: 13px; margin-bottom: 14px; }
+#fermer { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border: 1px solid var(--bord); border-radius: 8px; background: var(--surface); cursor: pointer; font-size: 18px; line-height: 1; }
+.bloc { border: 1px solid var(--bord); border-radius: var(--r); padding: 12px; margin-bottom: 12px; background: var(--surface); box-shadow: var(--ombre); }
+.bloc .panneau { font-size: 13px; padding: 5px 11px; margin-bottom: 10px; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.act-l { display: flex; align-items: center; gap: 9px; min-height: 52px; padding: 9px 11px; border: 1px solid var(--bord); border-radius: 12px; background: var(--surface-2); color: var(--texte); text-decoration: none; font-weight: 650; font-size: 13.5px; line-height: 1.2; }
+.act-l:hover { border-color: var(--rouge); }
+.act-l.large { grid-column: 1 / -1; } .act-l.off { opacity: .35; pointer-events: none; }
+.act-l svg { width: 24px; height: 24px; flex: none; }
+@media (max-width: 860px) {
+  .barre { padding: 8px 10px; gap: 8px; } .logo span { display: none; } .q { min-width: 0; flex: 1; }
+  main { padding: 10px 6px 60px; } td.km, th.km, td.nom small { display: none; }
+  tbody td, thead th { padding: 6px; }
+}
+</style>
+</head>
+<body>
+<header class="barre">
+  <div class="logo"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="3" width="26" height="26" rx="7" fill="#d91c2a"/><path d="M11 23V9M21 23V9" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/><path d="M16 11v3M16 18v3" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg><span>Fermer un échangeur</span></div>
+  <div class="choix"><span class="cartouche" id="cart">A</span><select id="choix" aria-label="Autoroute"></select></div>
+  <input class="q" id="q" type="search" placeholder="N°, nom, ville…" autocomplete="off" aria-label="Filtrer les points">
+  <select id="sens" aria-label="Sens"></select>
+  <label class="puce"><input type="checkbox" id="aires" checked> Aires et péages</label>
+  <span class="esp"></span>
+  <nav class="vues" id="vues" aria-label="Affichage"></nav>
+</header>
+<main>
+  <div class="entete" id="entete"></div>
+  <div class="cadre"><table>
+    <thead><tr>
+      <th class="tri" data-tri="ordre">N°<span class="fl" id="fl-ordre"></span></th>
+      <th class="tri" data-tri="nom">Nom<span class="fl" id="fl-nom"></span></th>
+      <th>Sens</th>
+      <th class="tri km" data-tri="km">km<span class="fl" id="fl-km"></span></th>
+      <th class="act" title="Entrée interdite">Entrée<br>interdite</th>
+      <th class="act" title="Sortie interdite (bifurcation : bifurcation fermée)">Sortie<br>interdite</th>
+      <th class="act" title="Sortie obligatoire (bifurcation : bifurcation obligatoire)">Sortie<br>obligatoire</th>
+      <th class="act" title="Entrée interdite + sortie obligatoire">Entrée + sortie<br>obligatoire</th>
+      <th class="act" title="Tout fermer d'un coup (échangeur fermé…)">Tout<br>fermer</th>
+    </tr></thead>
+    <tbody id="corps"></tbody>
+  </table></div>
+  <p class="aide" style="margin-top:12px">Chaque bouton ouvre WME avec les segments à fermer déjà sélectionnés. Un clic sur une ligne affiche le détail du point. Les en-têtes N°, Nom et km trient le tableau.</p>
+</main>
+<aside id="detail" aria-live="polite"></aside>
+
+<script src="vues.js"></script>
+<script>
+'use strict';
+const DONNEES = {"date":"04/11/2026","liste":[{"route":"A1","titre":"A1","anneau":false,"sens":["Paris","Lille"]},{"route":"A2","titre":"A2","anneau":false,"sens":["Paris","Belgique"]},{"route":"A3","titre":"A3","anneau":false,"sens":["Paris","Lille"]},{"route":"A4","titre":"A4","anneau":false,"sens":["Strasbourg","Paris"]},{"route":"A5","titre":"A5","anneau":false,"sens":["Langres","Paris"]},{"route":"A5a","titre":"A5a","anneau":false,"sens":["Corbeil-Essonnes","A5b"]},{"route":"A5b","titre":"A5b","anneau":false,"sens":["Melun","Combs-la-Ville"]},{"route":"A6","titre":"A6","anneau":false,"sens":["Lyon","Paris"]},{"route":"A6a","titre":"A6a","anneau":false,"sens":["Paris","Lyon"]},{"route":"A6b","titre":"A6b","anneau":false,"sens":["A6a","A10"]},{"route":"A7","titre":"A7","anneau":false,"sens":["Lyon","Marseille"]},{"route":"A8","titre":"A8","anneau":false,"sens":["Aix","Italie"]},{"route":"A9","titre":"A9","anneau":false,"sens":["Lyon","Barcelone"]},{"route":"A10","titre":"A10","anneau":false,"sens":["Bordeaux","Paris"]},{"route":"A11","titre":"A11","anneau":false,"sens":["Paris","Nantes"]},{"route":"A12","titre":"A12","anneau":false,"sens":["Trappes","Paris"]},{"route":"A13","titre":"A13","anneau":false,"sens":["Paris","Caen"]},{"route":"A14","titre":"A14","anneau":false,"sens":["Rouen","Paris"]},{"route":"A15","titre":"A15","anneau":false,"sens":["Cergy-Pontoise","Paris"]},{"route":"A16","titre":"A16","anneau":false,"sens":["Belgique","Paris"]},{"route":"A19","titre":"A19","anneau":false,"sens":["Orléans","Sens"]},{"route":"A20","titre":"A20","anneau":false,"sens":["Toulouse","Vierzon"]},{"route":"A21","titre":"A21","anneau":false,"sens":["Valenciennes","Béthune"]},{"route":"A22","titre":"A22","anneau":false,"sens":["Lille (sud)","Lille (nord)"]},{"route":"A23","titre":"A23","anneau":false,"sens":["Valenciennes","Lille"]},{"route":"A25","titre":"A25","anneau":false,"sens":["Dunkerque","Lille"]},{"route":"A26","titre":"A26","anneau":false,"sens":["Troyes","Calais"]},{"route":"A27","titre":"A27","anneau":false,"sens":["Tournai","Lille"]},{"route":"A28","titre":"A28","anneau":false,"sens":["Tours","Abbeville"]},{"route":"A29","titre":"A29","anneau":false,"sens":["Le Havre","Saint-Quentin"]},{"route":"A30","titre":"A30","anneau":false,"sens":["Metz","Belgique"]},{"route":"A31","titre":"A31","anneau":false,"sens":["Luxembourg","Beaune"]},{"route":"A33","titre":"A33","anneau":false,"sens":["Strasbourg","Nancy"]},{"route":"A34","titre":"A34","anneau":false,"sens":["Reims","Belgique"]},{"route":"A35","titre":"A35","anneau":false,"sens":["Bâle","Strasbourg"]},{"route":"A36","titre":"A36","anneau":false,"sens":["Beaune","Mulhouse"]},{"route":"A38","titre":"A38","anneau":false,"sens":["Dijon","A6"]},{"route":"A39","titre":"A39","anneau":false,"sens":["Dijon","Bourg-en-Bresse"]},{"route":"A40","titre":"A40","anneau":false,"sens":["Mâcon","Chamonix"]},{"route":"A41","titre":"A41","anneau":false,"sens":["Grenoble","Genève"]},{"route":"A42","titre":"A42","anneau":false,"sens":["Villeurbanne","Bourg-en-Bresse"]},{"route":"A43","titre":"A43","anneau":false,"sens":["Italie","Lyon"]},{"route":"A46","titre":"A46","anneau":false,"sens":["Villefranche-sur-Saône","Saint-Priest"]},{"route":"A47","titre":"A47","anneau":false,"sens":["Saint-Chamond","A46"]},{"route":"A48","titre":"A48","anneau":false,"sens":["Grenoble","Lyon"]},{"route":"A49","titre":"A49","anneau":false,"sens":["Valence","Grenoble"]},{"route":"A50","titre":"A50","anneau":false,"sens":["Marseille","Toulon"]},{"route":"A51","titre":"A51","anneau":false,"sens":["Grenoble","Marseille"]},{"route":"A52","titre":"A52","anneau":false,"sens":["A50","A8"]},{"route":"A54","titre":"A54","anneau":false,"sens":["Salon-de-Provence","Nîmes"]},{"route":"A55","titre":"A55","anneau":false,"sens":["Martigues","A557"]},{"route":"A57","titre":"A57","anneau":false,"sens":["Fréjus","Toulon"]},{"route":"A61","titre":"A61","anneau":false,"sens":["Narbonne","Toulouse"]},{"route":"A62","titre":"A62","anneau":false,"sens":["Bordeaux","Toulouse"]},{"route":"A63","titre":"A63","anneau":false,"sens":["Bordeaux","Espagne"]},{"route":"A64","titre":"A64","anneau":false,"sens":["Toulouse","Bayonne"]},{"route":"A65","titre":"A65","anneau":false,"sens":["Bordeaux","Pau"]},{"route":"A66","titre":"A66","anneau":false,"sens":["Andorre","Toulouse"]},{"route":"A68","titre":"A68","anneau":false,"sens":["Toulouse","Albi"]},{"route":"A69","titre":"A69","anneau":false,"sens":["Toulouse","Castres"]},{"route":"A71","titre":"A71","anneau":false,"sens":["Clermont-Ferrand","Orléans"]},{"route":"A72","titre":"A72","anneau":false,"sens":["Saint-Étienne","Clermont-Ferrand"]},{"route":"A75","titre":"A75","anneau":false,"sens":["Clermont-Ferrand","Béziers"]},{"route":"A77","titre":"A77","anneau":false,"sens":["Paris","Nevers"]},{"route":"A79","titre":"A79","anneau":false,"sens":["Montluçon","Lyon"]},{"route":"A81","titre":"A81","anneau":false,"sens":["Rennes","Le Mans"]},{"route":"A83","titre":"A83","anneau":false,"sens":["Nantes","Niort"]},{"route":"A84","titre":"A84","anneau":false,"sens":["Rennes","Caen"]},{"route":"A85","titre":"A85","anneau":false,"sens":["Vierzon","Angers"]},{"route":"A87","titre":"A87","anneau":false,"sens":["La Roche-sur-Yon","Angers"]},{"route":"A88","titre":"A88","anneau":false,"sens":["Alençon","Caen"]},{"route":"A89","titre":"A89","anneau":false,"sens":["Bordeaux","Lyon"]},{"route":"A104","titre":"A104","anneau":false,"sens":["A4","A3"]},{"route":"A106","titre":"A106","anneau":false,"sens":["Paris","A6b"]},{"route":"A115","titre":"A115","anneau":false,"sens":["A15","Taverny"]},{"route":"A126","titre":"A126","anneau":false,"sens":["A10","A6"]},{"route":"A131","titre":"A131","anneau":false,"sens":["A13","Le Havre"]},{"route":"A132","titre":"A132","anneau":false,"sens":["Le Havre","A13"]},{"route":"A140","titre":"A140","anneau":false,"sens":["Meaux (nord)","Meaux (sud)"]},{"route":"A150","titre":"A150","anneau":false,"sens":["Rouen","Yvetot"]},{"route":"A151","titre":"A151","anneau":false,"sens":["A150","A29"]},{"route":"A154","titre":"A154","anneau":false,"sens":["A13","Évreux"]},{"route":"A211","titre":"A211","anneau":false,"sens":["A21","Lens"]},{"route":"A216","titre":"A216","anneau":false,"sens":["Calais","A26"]},{"route":"A304","titre":"A304","anneau":false,"sens":["Charleville-Mézières","A34"]},{"route":"A311","titre":"A311","anneau":false,"sens":["A31","Dijon"]},{"route":"A314","titre":"A314","anneau":false,"sens":["A4","A315"]},{"route":"A315","titre":"A315","anneau":false,"sens":["A4"]},{"route":"A320","titre":"A320","anneau":false,"sens":["Sarrebruck","Metz"]},{"route":"A330","titre":"A330","anneau":false,"sens":["Nancy (nord)","Nancy (sud)"]},{"route":"A344","titre":"A344","anneau":false,"sens":["Paris","Strasbourg"]},{"route":"A352","titre":"A352","anneau":false,"sens":["A35","Strasbourg"]},{"route":"A355","titre":"A355","anneau":false,"sens":["A35","A4"]},{"route":"A391","titre":"A391","anneau":false,"sens":["Dole","A39"]},{"route":"A404","titre":"A404","anneau":false,"sens":["A40","Oyonnax"]},{"route":"A406","titre":"A406","anneau":false,"sens":["A40","A6"]},{"route":"A410","titre":"A410","anneau":false,"sens":["A41","A40"]},{"route":"A411","titre":"A411","anneau":false,"sens":["Annemasse","A40"]},{"route":"A430","titre":"A430","anneau":false,"sens":["Annecy","A43"]},{"route":"A432","titre":"A432","anneau":false,"sens":["A46","A43"]},{"route":"A450","titre":"A450","anneau":false,"sens":["A7","Brignais"]},{"route":"A480","titre":"A480","anneau":false,"sens":["A51","A48"]},{"route":"A500","titre":"A500","anneau":false,"sens":["Nice (sud)","Nice (nord)"]},{"route":"A501","titre":"A501","anneau":false,"sens":["A52","A50"]},{"route":"A507","titre":"A507","anneau":false,"sens":["A7","A50"]},{"route":"A570","titre":"A570","anneau":false,"sens":["Toulon","A57"]},{"route":"A621","titre":"A621","anneau":false,"sens":["Aéroport Blagnac","A620"]},{"route":"A624","titre":"A624","anneau":false,"sens":["Toulouse","A620"]},{"route":"A660","titre":"A660","anneau":false,"sens":["A63","Gujan-Mestras"]},{"route":"A709","titre":"A709","anneau":false,"sens":["Lyon","Espagne"]},{"route":"A710","titre":"A710","anneau":false,"sens":["A71","A89"]},{"route":"A711","titre":"A711","anneau":false,"sens":["A75","A89"]},{"route":"A714","titre":"A714","anneau":false,"sens":["Montluçon","A71"]},{"route":"A719","titre":"A719","anneau":false,"sens":["Vichy","A71"]},{"route":"A750","titre":"A750","anneau":false,"sens":["A75","Montpellier"]},{"route":"A811","titre":"A811","anneau":false,"sens":["A11","Nantes"]},{"route":"A813","titre":"A813","anneau":false,"sens":["Caen","A13"]},{"route":"A837","titre":"A837","anneau":false,"sens":["Rochefort","A10"]},{"route":"anneau-A86","titre":"A86 (Île-de-France)","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-BP-Paris","titre":"Boulevard périphérique de Paris","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Lyon","titre":"Périphérique de Lyon (BPNL, Laurent Bonnevay)","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Nantes","titre":"Périphérique de Nantes","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Toulouse","titre":"Périphérique de Toulouse","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Tours","titre":"Boulevard périphérique de Tours","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Rocade-Bordeaux","titre":"Rocade de Bordeaux","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Rocade-Rennes","titre":"Rocade de Rennes","anneau":true,"sens":["Intérieur","Extérieur"]}],"ouvrages":[{"id":"mont-blanc","titre":"Tunnel du Mont-Blanc","route":"N205","km":7.6},{"id":"frejus","titre":"Tunnel routier du Fréjus","route":"A43","km":6.7},{"id":"somport","titre":"Tunnel du Somport","route":"N134","km":2.7},{"id":"puymorens","titre":"Tunnel du Puymorens","route":"N20","km":2.5},{"id":"millau","titre":"Viaduc de Millau","route":"A75","km":2.8},{"id":"normandie","titre":"Pont de Normandie","route":"A29","km":6.9},{"id":"tancarville","titre":"Pont de Tancarville","route":"D982","km":1.5},{"id":"saint-nazaire","titre":"Pont de Saint-Nazaire","route":"D213","km":4.1},{"id":"prado-carenage","titre":"Tunnel Prado-Carénage (Marseille)","route":"A50","km":2.5},{"id":"toulon","titre":"Tunnel de Toulon","route":"A50/A57","km":3.0},{"id":"vieux-port","titre":"Tunnel du Vieux-Port (Marseille)","route":"A55/A50","km":0.7}]};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const lien = l => 'https://www.waze.com/fr/editor?env=row&lat=' + l.c[1] + '&lon=' + l.c[0] + '&zoomLevel=' + l.z + '&segments=' + l.ids.join(',');
+const ICO = {
+  interdit: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#e11d2e"/><rect x="5" y="9.6" width="14" height="4.8" rx="1" fill="#fff"/></svg>',
+  oblig: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#1f4fbf"/><path d="M7.5 16.5 16 8M10.5 8H16v5.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+const GESTES = [
+  { k: 'entree', txt: 'Entrée interdite', ico: ICO.interdit },
+  { k: 'sortie', txt: 'Sortie interdite', ico: ICO.interdit },
+  { k: 'oblig', txt: 'Sortie obligatoire', ico: ICO.oblig },
+  { k: 'deux', txt: 'Entrée interdite + sortie obligatoire', ico: ICO.interdit + ICO.oblig, large: true },
+];
+function texteGeste(k, p) {
+  if (k === 'tout') return 'Tout fermer' + (p.lib_tout ? ' : ' + p.lib_tout : '');
+  if (p.kind === 'bifurcation') return { sortie: 'Bifurcation fermée', oblig: 'Bifurcation obligatoire', entree: 'Entrée interdite', deux: 'Entrée interdite + bifurcation obligatoire' }[k];
+  if (p.kind === 'aire') return { sortie: 'Accès à l\'aire fermé', oblig: 'Passage par l\'aire obligatoire', entree: 'Sortie de l\'aire fermée', deux: 'Aire : sortie fermée + passage obligatoire' }[k];
+  return GESTES.find(g => g.k === k).txt;
+}
+const KIND = { echangeur: 'Échangeur', aire: 'Aire', bifurcation: 'Bifurcation', entree: 'Entrée', autre: 'Sortie sans numéro', peage: 'Péage' };
+const sansAcc = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const etat = { route: null, D: null, rangs: [], tri: 'ordre', sens: 'tous', aires: true, sel: null };
+try { const m = JSON.parse(localStorage.getItem('fe-tableau') || '{}'); if (typeof m.aires === 'boolean') etat.aires = m.aires; } catch (e) {}
+const retenir = () => { try { localStorage.setItem('fe-tableau', JSON.stringify({ aires: etat.aires })); } catch (e) {} };
+
+/* Un rang = un point, ses deux sens réunis (même numéro, même nom ramené, même autoroute rejointe, à moins de 8 km) */
+const nomCle = n => (n || '').replace(/\s*\((?:entrée|sortie) seule\)$/, '').replace(/^(?:Début|Fin) de l’autoroute$/, '·bout').replace(/^(?:Depuis|Vers) /, '');
+const cle = p => p.kind === 'echangeur' && p.num ? 'n' + p.num : p.kind === 'echangeur' && p.nom ? 'x' + nomCle(p.nom) : p.kind === 'bifurcation' ? 'b' + (p.nom || '').split(/[: ]/)[0] : (p.kind === 'aire' || p.kind === 'peage') ? 'a' + p.nom : null;
+// sens de lecture, comme la carte : du nord vers le sud (de l'ouest vers l'est pour un axe franchement est-ouest)
+const coord = p => { for (const k of ['sortie', 'entree', 'oblig', 'tout']) if (p.f[k]) return p.f[k].c; return null; };
+function ordreSens(cs) {
+  if (cs.length < 2) return [0, 1];
+  const P = cs[0].points.map(coord).filter(Boolean); if (P.length < 2) return [0, 1];
+  const d = P[0], f = P[P.length - 1];
+  const descend = Math.abs(f[0] - d[0]) > 2 * Math.abs(f[1] - d[1]) ? f[0] > d[0] : f[1] < d[1];
+  return descend ? [0, 1] : [1, 0];
+}
+function construireRangs() {
+  [etat.ia, etat.ib] = ordreSens(etat.D.chaussees);
+  const a = etat.D.chaussees[etat.ia], b = etat.D.chaussees[etat.ib], La = a.km || 1, Lb = (b && b.km) || 1, out = [];
+  for (const p of a.points) out.push({ pos: p.km, a: p, b: null });
+  if (b) for (const q of b.points) {
+    const pos = La - q.km * (La / Lb), k = cle(q);
+    const r = k && out.find(x => x.a && cle(x.a) === k && !x.b && Math.abs(x.pos - pos) < 8);
+    if (r) r.b = q; else out.push({ pos, a: null, b: q });
+  }
+  return out.sort((x, y) => x.pos - y.pos).map((r, i) => Object.assign(r, { i }));
+}
+function pastille(p) {
+  if (p.kind === 'bifurcation') return ['bif', (p.nom || '').split(/[: ]/)[0].slice(0, 6)];
+  if (p.kind === 'aire') return ['aire', 'P'];
+  if (p.kind === 'peage') return ['autre', '€'];
+  if (p.num) return ['', p.num];
+  return ['autre', '·'];
+}
+const cache_ = p => !etat.aires && (p.kind === 'aire' || p.kind === 'peage');
+const numTri = n => { const m = String(n || '').match(/^(\d+)(.*)$/); return m ? [+m[1], m[2]] : [1e9, String(n || '')]; };
+
+function lignes() {
+  const q = sansAcc($('q').value.trim()), cs = etat.D.chaussees;
+  let L = [];
+  for (const r of etat.rangs) for (const [c, ci] of [['a', etat.ia], ['b', etat.ib]]) {
+    const p = r[c]; if (!p || cache_(p)) continue;
+    if (etat.sens !== 'tous' && +etat.sens !== ci) continue;
+    if (q && !sansAcc([p.num, p.nom, p.nom_waze, (p.dest || []).join(' '), p.lib_tout].join(' ')).includes(q)) continue;
+    L.push({ r, p, ci, vers: cs[ci].vers });
+  }
+  if (etat.tri === 'nom') L.sort((x, y) => sansAcc(x.p.nom).localeCompare(sansAcc(y.p.nom)) || x.ci - y.ci);
+  else if (etat.tri === 'num') L.sort((x, y) => { const a = numTri(x.p.num), b = numTri(y.p.num); return a[0] - b[0] || (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0) || x.ci - y.ci; });
+  else if (etat.tri === 'km') L.sort((x, y) => (x.ci !== y.ci ? (x.ci === etat.ia ? -1 : 1) : 0) || x.p.km - y.p.km);
+  return L;
+}
+function bouton(p, k) {
+  const l = p.f[k];
+  if (!l) return '<td class="act"><span class="vide" aria-label="sans objet">–</span></td>';
+  const t = texteGeste(k, p), ico = k === 'deux' ? ICO.interdit + ICO.oblig : k === 'tout' ? ICO.interdit + ICO.interdit : (GESTES.find(g => g.k === k) || {}).ico;
+  return '<td class="act"><a class="b' + (k === 'tout' ? ' tout' : '') + '" target="_blank" rel="noopener" href="' + esc(lien(l)) + '" title="' + esc(t + ' · ' + l.ids.length + ' segment(s) · ouvrir WME') + '">' + ico + '</a></td>';
+}
+function dessiner() {
+  const L = lignes();
+  ['ordre', 'nom', 'km'].forEach(t => { $('fl-' + t).textContent = (etat.tri === t || (t === 'ordre' && etat.tri === 'num')) ? '▼' : ''; });
+  if (!L.length) { $('corps').innerHTML = '<tr><td colspan="9" class="rien">Aucun point ne correspond.</td></tr>'; return; }
+  let prec = null;
+  $('corps').innerHTML = L.map(x => {
+    const { r, p, ci } = x, [cls, txt] = pastille(p), suite = etat.tri === 'ordre' && prec === r;
+    const dest = (p.dest || []).filter(d => d && d !== p.nom).join(', ');
+    prec = r;
+    // l'autre sens d'un même point : sur la ligne suivante, sans répéter le numéro ni le nom (sauf s'il diffère)
+    const autreNom = suite && p.nom !== (r.a || r.b).nom;
+    return '<tr data-i="' + r.i + '" class="' + (suite ? 'suite' : 'premier') + (etat.sel === r.i ? ' sel' : '') + '">'
+      + '<td>' + (suite ? '' : '<span class="num ' + cls + '">' + esc(txt) + '</span>') + '</td>'
+      + '<td class="nom">' + (suite && !autreNom ? '' : '<b>' + esc(p.nom) + '</b>') + (dest ? '<small>' + esc(dest) + '</small>' : '') + '</td>'
+      + '<td><span class="panneau">→ ' + esc(x.vers) + '</span></td>'
+      + '<td class="km">' + p.km.toFixed(1) + '</td>'
+      + bouton(p, 'entree') + bouton(p, 'sortie') + bouton(p, 'oblig') + bouton(p, 'deux') + bouton(p, 'tout') + '</tr>';
+  }).join('');
+}
+
+/* ----- panneau du point choisi (et mode administration, qui s'y ajoute) ----- */
+function bloc(p, ci) {
+  const c = etat.D.chaussees[ci]; if (!c) return '';
+  if (!p) return '<div class="bloc"><span class="panneau">→ ' + esc(c.vers) + '</span><div class="aide">Rien dans ce sens à cet endroit.</div>' + (window.FE_ADMIN ? FE_ADMIN.panneau(null, ci) : '') + '</div>';
+  return '<div class="bloc"><span class="panneau">→ ' + esc(c.vers) + '</span>' + (p.dest && p.dest.length ? '<div class="aide" style="margin:-4px 0 8px">Panneau : ' + esc(p.dest.join(', ')) + '</div>' : '')
+    + '<div class="actions">' + GESTES.map(g => { const l = p.f[g.k]; if (g.k === 'deux' && !l) return ''; return l ? '<a class="act-l' + (g.large ? ' large' : '') + '" target="_blank" rel="noopener" href="' + esc(lien(l)) + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></a>' : '<span class="act-l off' + (g.large ? ' large' : '') + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></span>'; }).join('')
+    + (p.f.tout ? '<a class="act-l large" style="border-color:var(--rouge)" target="_blank" rel="noopener" href="' + esc(lien(p.f.tout)) + '">' + ICO.interdit + ICO.interdit + '<span>' + esc(texteGeste('tout', p)) + '</span></a>' : '')
+    + '</div>' + (window.FE_ADMIN ? FE_ADMIN.panneau(p, ci) : '') + '</div>';
+}
+function detail() {
+  if (window.FE_ADMIN) FE_ADMIN.reset();
+  const r = etat.rangs[etat.sel];
+  if (!r) { $('detail').classList.remove('vu'); $('detail').innerHTML = ''; return; }
+  const q = r.a || r.b, [cls, txt] = pastille(q);
+  $('detail').innerHTML = '<button type="button" id="fermer" aria-label="Fermer">×</button><h3><span class="num ' + cls + '">' + esc(txt) + '</span>' + esc(q.nom) + '</h3>'
+    + '<div class="sous">' + (KIND[q.kind] || '') + ' · km ' + q.km.toFixed(1) + (q.nom_source ? ' · nom de l’échangeur d’après ' + (q.nom_source === 'lieu Waze' ? 'le lieu Waze' : esc(q.nom_source)) : '') + (q.source === 'connaissance locale' ? ' · nom arbitré (connaissance locale)' : '') + '</div>'
+    + bloc(r.a, etat.ia) + (etat.D.chaussees[etat.ib] ? bloc(r.b, etat.ib) : '');
+  $('detail').classList.add('vu');
+}
+$('detail').addEventListener('click', ev => { if (ev.target.id === 'fermer') { etat.sel = null; detail(); dessiner(); } });
+document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && etat.sel != null && !document.querySelector('#detail .saisie')) { etat.sel = null; detail(); dessiner(); } });
+$('corps').addEventListener('click', ev => {
+  if (ev.target.closest('a')) return;            // un bouton ouvre WME, il ne choisit pas la ligne
+  const tr = ev.target.closest('tr[data-i]'); if (!tr) return;
+  etat.sel = +tr.dataset.i; detail(); dessiner();
+});
+document.querySelectorAll('th.tri').forEach(th => th.onclick = () => {
+  const t = th.dataset.tri;
+  etat.tri = t === 'ordre' ? (etat.tri === 'ordre' ? 'num' : 'ordre') : t;   // N° : ordre de la route, puis par numéro
+  dessiner();
+});
+// le panneau du point choisi commence sous la barre (qui peut passer sur deux lignes)
+const caler = () => { $('detail').style.top = document.querySelector('.barre').offsetHeight + 'px'; };
+addEventListener('resize', caler); caler();
+$('q').oninput = dessiner;
+$('sens').onchange = e => { etat.sens = e.target.value; dessiner(); };
+$('aires').onchange = e => { etat.aires = e.target.checked; retenir(); dessiner(); };
+
+/* ----- chargement ----- */
+const infos = r => DONNEES.liste.find(x => x.route === r);
+async function chargerD(r) { return fetch('d/' + encodeURIComponent(r) + '.json', { cache: 'no-store' }).then(x => { if (!x.ok) throw new Error(x.status); return x.json(); }); }
+async function charger(r) {
+  etat.route = r; etat.sel = null; detail();
+  FE_VUES.route(r);
+  const i = infos(r);
+  $('choix').value = r; $('cart').textContent = i && i.anneau ? '⟳' : r;
+  $('corps').innerHTML = '<tr><td colspan="9" class="rien">Chargement…</td></tr>';
+  try { etat.D = await chargerD(r); } catch (e) { $('corps').innerHTML = '<tr><td colspan="9" class="rien">Impossible de charger ' + esc(r) + '.</td></tr>'; return; }
+  etat.rangs = construireRangs();
+  const cs = etat.D.chaussees;
+  $('sens').innerHTML = '<option value="tous">Les deux sens</option>' + cs.map((c, k) => '<option value="' + k + '">→ ' + esc(c.vers) + '</option>').join('');
+  if (etat.sens !== 'tous' && !cs[+etat.sens]) etat.sens = 'tous';
+  $('sens').value = etat.sens;
+  $('entete').innerHTML = '<h1>' + esc(i && i.anneau ? i.titre : 'Autoroute ' + r) + '</h1><span class="meta">' + esc(cs.map(c => c.vers).join(' ↔ ')) + ' · ' + etat.rangs.length + ' points · lu dans Waze le ' + esc(DONNEES.date) + '</span>';
+  dessiner();
+}
+$('choix').onchange = e => { $('q').value = ''; charger(e.target.value); };
+
+// pour le mode administration (admin.js, servi seulement par admin.py sur le poste de l'auteur)
+window.GEO = {
+  route: () => etat.route,
+  vers: ci => (etat.D.chaussees[ci] || {}).vers,
+  recharger: async retrouver => {
+    const avant = etat.rangs[etat.sel], nom = retrouver || (avant && (avant.a || avant.b).nom), pos = avant ? avant.pos : null;
+    etat.D = await chargerD(etat.route); etat.rangs = construireRangs();
+    let i = nom ? etat.rangs.findIndex(r => (r.a && r.a.nom === nom) || (r.b && r.b.nom === nom)) : -1;
+    if (i < 0 && pos != null) { let d = 1e9; etat.rangs.forEach((r, k) => { const e = Math.abs(r.pos - pos); if (e < d) { d = e; i = k; } }); }
+    etat.sel = i >= 0 ? i : null; dessiner(); detail();
+  },
+  km: (p, ci) => p ? p.km + 0.1 : 0,
+  rafraichir: () => { if (etat.sel != null) detail(); },
+};
+
+(() => {
+  const ordre = r => r.anneau ? [1, 0, r.route] : [0, parseInt(r.route.slice(1), 10) || 0, r.route];
+  const routes = [...DONNEES.liste].sort((a, b) => { const x = ordre(a), y = ordre(b); return x[0] - y[0] || x[1] - y[1] || (x[2] < y[2] ? -1 : 1); });
+  $('choix').innerHTML = routes.map(r => '<option value="' + esc(r.route) + '">' + esc(r.anneau ? '⟳ ' + r.titre : r.route) + '</option>').join('');
+  $('aires').checked = etat.aires;
+  // la dernière autoroute vue (ou celle de l'adresse ?r=…), commune aux trois vues
+  FE_VUES.init('tableau');
+  charger(FE_VUES.depart(routes.map(r => r.route), 'A7'));
+})();
+</script>
+</body>
+</html>
