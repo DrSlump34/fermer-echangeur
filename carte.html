@@ -44,6 +44,27 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 .voisin-c rect { fill: var(--cartouche); stroke: #fff; stroke-width: 1.5; transition: stroke-width var(--t); }
 .voisin-c:hover rect { stroke: var(--accent); stroke-width: 3; }
 .act.autre-route { border-color: var(--cartouche); }
+/* ouvrage : routes autour, tube (tunnel) ou tablier (pont), voies cliquables, têtes, panneaux */
+.rz { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.r3 { stroke: var(--chaussee); stroke-width: 6; opacity: .75; } .r4 { stroke: var(--chaussee); stroke-width: 3.5; opacity: .6; }
+.r6 { stroke: var(--voisin); stroke-width: 4; } .r7 { stroke: var(--voisin); stroke-width: 3; } .r2 { stroke: var(--voisin); stroke-width: 2.4; }
+.r1 { stroke: var(--voisin); stroke-width: 1.4; opacity: .7; }
+.ov polyline, .ov line { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.ov .ov-bord { stroke-width: 44; } .ov .ov-corps { stroke-width: 40; }
+.ov.tunnel .ov-bord { stroke: #64748b; } .ov.tunnel .ov-corps { stroke: #1e293b; }
+.ov.pont .ov-bord { stroke: var(--chaussee-fort); } .ov.pont .ov-corps { stroke: var(--surface-2); }
+.ov .ov-garde { stroke: var(--chaussee-fort); stroke-width: 2; }
+.ov .ov-milieu { stroke: #fff; stroke-width: 1.5; stroke-dasharray: 8 9; opacity: .7; }
+.ov.pont .ov-milieu { stroke: var(--chaussee-fort); }
+.ov .ov-tete { stroke: var(--chaussee-fort); stroke-width: 7; stroke-linecap: butt; }
+.ov.tunnel .ov-tete { stroke: #94a3b8; stroke-width: 9; }
+.ov-voie { fill: none; stroke: var(--chaussee); stroke-width: 10; stroke-linecap: butt; stroke-linejoin: round; cursor: pointer; transition: stroke var(--t), stroke-width var(--t); }
+.ov.tunnel .ov-voie { stroke: #475569; }
+.ov-voie:hover, .ov-voie.vu { stroke: var(--rouge) !important; stroke-width: 12; }
+.ov-voie.absent { stroke: var(--bord); stroke-dasharray: 2 6; cursor: default; }
+.ov-fleche { fill: none; stroke: #fff; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; opacity: .9; }
+.ov-pan rect { fill: var(--panneau); stroke: #fff; stroke-width: 1.5; } .ov-pan text { font: 700 12.5px ui-sans-serif, system-ui; fill: #fff; dominant-baseline: central; }
+.ov-nom { font: 750 15px ui-sans-serif, system-ui; fill: var(--texte); paint-order: stroke; stroke: var(--fond); stroke-width: 5px; }
 .ov-m rect { fill: #334155; stroke: #fff; stroke-width: 2; } .ov-m text { font: 800 13px ui-sans-serif, system-ui; fill: #fff; dominant-baseline: central; }
 .ov-m .lib { font: 700 14px ui-sans-serif, system-ui; fill: var(--texte); paint-order: stroke; stroke: var(--fond); stroke-width: 4px; }
 .voisin-c text { font: 800 11px ui-sans-serif, system-ui; fill: #fff; text-anchor: middle; dominant-baseline: central; }
@@ -465,25 +486,63 @@ function dessiner() {
 
 /* ================= Un ouvrage : le réseau des autoroutes autour, l'ouvrage au centre ================= */
 const ptOuvrage = o => (o.tout && o.tout.c) || ((o.sens || []).find(Boolean) || {}).f.c;
+let GEO_OUV = null;
+async function geoOuvrages() { if (!GEO_OUV) GEO_OUV = await fetch('geo/_ouvrages.json').then(x => x.json()).catch(() => ({})); return GEO_OUV; }
+// ligne décalée de d pixels vers la droite du sens de parcours (repère écran : y vers le bas)
+function decaler(Q, d) {
+  return Q.map((q, i) => {
+    const p0 = Q[Math.max(0, i - 1)], p1 = Q[Math.min(Q.length - 1, i + 1)];
+    let tx = p1[0] - p0[0], ty = p1[1] - p0[1]; const l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l;
+    return [q[0] - ty * d, q[1] + tx * d];
+  });
+}
+// point et direction à la fraction f de la longueur d'une ligne
+function auFil(Q, f) {
+  const L = []; let t = 0; for (let i = 1; i < Q.length; i++) { t += Math.hypot(Q[i][0] - Q[i - 1][0], Q[i][1] - Q[i - 1][1]); L.push(t); }
+  const cible = f * t; let i = L.findIndex(x => x >= cible); if (i < 0) i = L.length - 1;
+  const a = Q[i], b = Q[i + 1], l0 = i ? L[i - 1] : 0, u = (cible - l0) / ((L[i] - l0) || 1), dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1;
+  return { x: a[0] + dx * u, y: a[1] + dy * u, tx: dx / l, ty: dy / l, longueur: t };
+}
+const CLS_RT = { 3: 'r3', 4: 'r4', 6: 'r6', 7: 'r7', 2: 'r2' };
+function panneauSvg(x, y, txt, ancre) {
+  const w = 18 + txt.length * 7.1, x0 = ancre === 'fin' ? x - w : ancre === 'milieu' ? x - w / 2 : x;
+  return '<g class="ov-pan"><rect x="' + x0.toFixed(1) + '" y="' + (y - 12).toFixed(1) + '" width="' + w.toFixed(1) + '" height="24" rx="6"/><text x="' + (x0 + 9).toFixed(1) + '" y="' + y.toFixed(1) + '">' + esc(txt) + '</text></g>';
+}
 function dessinerOuvrage() {
-  const o = etat.ov, k = etat.K, sc = $('scene'), X = q => [q[0] * k, q[1] * k];
+  const o = etat.ov, G = etat.ovG, k = etat.K, sc = $('scene'), X = q => [q[0] * k, q[1] * k];
   const R = Math.max(sc.clientWidth, sc.clientHeight) / k * 0.8, dedans = ([x, y]) => Math.abs(x) < R && Math.abs(y) < R;
   let h = '';
+  // 1. les routes autour (accès, rues proches), d'après la zone lue dans WME
+  if (G) {
+    const par = {};
+    for (const [rt, g] of G.reseau) { const P = g.map(m); if (!P.some(dedans)) continue; (par[rt] = par[rt] || []).push(P.map(X)); }
+    for (const rt of [1, 8, 17, 20, 2, 7, 6, 4, 3]) for (const P of par[rt] || []) h += pl(simplifierPx(P, 0.8), 'rz ' + (CLS_RT[rt] || 'r1'));
+  }
+  // 2. le réseau des autoroutes (cartouches cliquables) et les villes. Un cartouche se pose SUR sa route, au plus
+  // près du centre, mais hors de l'ouvrage (à plus de 45 px de son axe) et loin de ses panneaux (plus de 70 px)
+  const QA = G && G.axe && G.axe.length > 1 ? G.axe.map(m).map(X) : [[0, 0]];
+  const dAxe = (x, y) => { let d = Math.hypot(x - QA[0][0], y - QA[0][1]); for (let i = 1; i < QA.length; i++) { const [ax, ay] = QA[i - 1], [bx, by] = QA[i], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1e-9, t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / L2)); d = Math.min(d, Math.hypot(x - ax - t * dx, y - ay - t * dy)); } return d; };
+  const evites = [];   // centres des panneaux de l'ouvrage, remplis plus bas : calculés d'abord ici
+  if (G && G.axe && G.axe.length > 1) {
+    const dA = auFil(QA, 0), dB = auFil(QA, 1), A = QA[0], B = QA[QA.length - 1];
+    evites.push([B[0] + dB.tx * 44 - dB.ty * 43, B[1] + dB.ty * 44 + dB.tx * 43], [A[0] - dA.tx * 44 + dA.ty * 43, A[1] - dA.ty * 44 - dA.tx * 43]);
+  }
   for (const [r, parts] of Object.entries(RESEAU)) {
-    // cartouche posé SUR la route, à 90 px de l'ouvrage le long du tracé (le tracé simplifié a des sommets espacés
-    // de plusieurs km : le sommet le plus proche tombait hors de l'écran, ou sous le repère de l'ouvrage)
     let meilleur = null, d = 1e18;
     for (const p of parts) {
       const P = p.map(m); if (!P.some(dedans)) continue;
       const Q = P.map(X);
-      h += pl(simplifierPx(Q, 1.2), 'voisin');
+      if (!G) h += pl(simplifierPx(Q, 1.2), 'voisin');
+      // points de la route tous les 20 px
       for (let i = 1; i < Q.length; i++) {
-        const [ax, ay] = Q[i - 1], [bx, by] = Q[i], dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1e-9;
-        const t = Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (L * L))), px = ax + t * dx, py = ay + t * dy, e = Math.hypot(px, py);
-        if (e < d) { d = e; const u = Math.min(90, L * (1 - t)); meilleur = [px + dx / L * u, py + dy / L * u]; }
+        const [ax, ay] = Q[i - 1], [bx, by] = Q[i], L = Math.hypot(bx - ax, by - ay), n = Math.max(1, Math.ceil(L / 20));
+        for (let j = 0; j <= n; j++) {
+          const x = ax + (bx - ax) * j / n, y = ay + (by - ay) * j / n, e = Math.hypot(x, y);
+          if (e >= d || dAxe(x, y) < 45 || evites.some(([u, v]) => Math.hypot(x - u, y - v) < 70)) continue;
+          d = e; meilleur = [x, y];
+        }
       }
     }
-    if (meilleur && Math.hypot(meilleur[0], meilleur[1]) < 40) meilleur = null;   // au bout du tracé, sous le repère : on ne le pose pas
     if (meilleur) {
       const q = meilleur, nom = r.replace(/^anneau-/, '⟳ ').replace(/-/g, ' '), w = 14 + nom.length * 7;
       h += '<g class="voisin-c" data-route="' + esc(r) + '" transform="translate(' + q[0].toFixed(1) + ',' + q[1].toFixed(1) + ')"><title>Ouvrir ' + esc(nom) + '</title><rect x="' + (-w / 2) + '" y="-10" width="' + w + '" height="20" rx="5"/><text>' + esc(nom) + '</text></g>';
@@ -495,23 +554,60 @@ function dessinerOuvrage() {
     const Q = X(q);
     h += '<g class="ville' + (pop > 60000 ? ' grande' : '') + '" transform="translate(' + Q[0].toFixed(1) + ',' + Q[1].toFixed(1) + ')"><circle r="' + (pop > 60000 ? 4.5 : 3) + '"/><text x="8" y="4">' + esc(nom) + '</text></g>';
   }
-  h += '<g class="ov-m"><rect x="-15" y="-15" width="30" height="30" rx="7"/><text x="0" text-anchor="middle">⛰</text><text class="lib" x="22">' + esc(o.titre) + '</text></g>';
+  // 3. l'ouvrage : deux voies (sens de a vers b à droite de a→b), tube sombre ou tablier clair, têtes, panneaux
+  if (G && G.axe && G.axe.length > 1) {
+    const Q = G.axe.map(m).map(X), O = 9, tunnel = o.type === 'tunnel';
+    const A = Q[0], B = Q[Q.length - 1], dA = auFil(Q, 0), dB = auFil(Q, 1);
+    h += '<g class="ov ' + (tunnel ? 'tunnel' : 'pont') + '">';
+    h += pl(Q, 'ov-bord') + pl(Q, 'ov-corps');
+    if (!tunnel) h += pl(decaler(Q, O + 8), 'ov-garde') + pl(decaler(Q, -O - 8), 'ov-garde');
+    h += pl(Q, 'ov-milieu');
+    const voies = [[0, decaler(Q, O)], [1, decaler(Q, -O).reverse()]];
+    for (const [i, V] of voies) {
+      const sv = (o.sens || [])[i];
+      h += '<polyline class="ov-voie' + (sv ? '' : ' absent') + '" data-k="' + i + '" points="' + V.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ') + '"/>';
+      // flèches de sens, une tous les 110 px environ
+      const lg = auFil(V, 1).longueur, n = Math.max(1, Math.floor(lg / 110));
+      for (let j = 1; j <= n; j++) {
+        const f = auFil(V, j / (n + 1)), c = 5;
+        h += '<path class="ov-fleche" d="M' + (f.x - f.tx * c - f.ty * c).toFixed(1) + ' ' + (f.y - f.ty * c + f.tx * c).toFixed(1) + ' L' + (f.x + f.tx * c).toFixed(1) + ' ' + (f.y + f.ty * c).toFixed(1) + ' L' + (f.x - f.tx * c + f.ty * c).toFixed(1) + ' ' + (f.y - f.ty * c - f.tx * c).toFixed(1) + '"/>';
+      }
+    }
+    // têtes de tunnel (ou culées du pont) : un trait en travers à chaque bout
+    for (const [P, dd] of [[A, dA], [B, dB]]) {
+      const l = O + (tunnel ? 18 : 14), nx = -dd.ty * l, ny = dd.tx * l;
+      h += '<line class="ov-tete" x1="' + (P[0] - nx).toFixed(1) + '" y1="' + (P[1] - ny).toFixed(1) + '" x2="' + (P[0] + nx).toFixed(1) + '" y2="' + (P[1] + ny).toFixed(1) + '"/>';
+    }
+    h += '</g>';
+    // panneaux : au bout où arrive chaque voie, du côté de cette voie
+    const s0 = (o.sens || [])[0], s1 = (o.sens || [])[1];
+    const lab = (P, dd, cote, txt) => { const ex = P[0] + dd.tx * 44 * cote.av - dd.ty * (O + 34) * cote.d, ey = P[1] + dd.ty * 44 * cote.av + dd.tx * (O + 34) * cote.d; return panneauSvg(ex, ey, txt, 'milieu'); };
+    if (s0) h += lab(B, dB, { av: 1, d: 1 }, '→ ' + s0.vers);
+    if (s1) h += lab(A, dA, { av: -1, d: -1 }, '→ ' + s1.vers);
+    // nom de l'ouvrage, au milieu, de l'autre côté de l'axe que la voie de a vers b
+    const mid = auFil(Q, 0.5), nx = mid.ty, ny = -mid.tx;
+    h += '<text class="ov-nom" x="' + (mid.x + nx * (O + 42)).toFixed(1) + '" y="' + (mid.y + ny * (O + 42) + 5).toFixed(1) + '" text-anchor="middle">' + esc(o.titre) + '</text>';
+  } else {
+    h += '<g class="ov-m"><rect x="-15" y="-15" width="30" height="30" rx="7"/><text x="0" text-anchor="middle">⛰</text><text class="lib" x="22">' + esc(o.titre) + '</text></g>';
+  }
   $('monde').innerHTML = h;
-  $('monde').style.transform = 'translate(' + (sc.clientWidth / 2).toFixed(1) + 'px,' + (sc.clientHeight * 0.45).toFixed(1) + 'px)';
+  $('monde').style.transform = 'translate(' + (sc.clientWidth / 2).toFixed(1) + 'px,' + (sc.clientHeight * 0.5).toFixed(1) + 'px)';
   $('piste').style.height = '0px';
   const kmEcran = sc.clientHeight / k / 1000;
   $('echelle').textContent = (kmEcran < 10 ? kmEcran.toFixed(1) : Math.round(kmEcran)) + ' km';
 }
-function chargerOuvrage(id) {
+async function chargerOuvrage(id) {
   const o = OUVRAGES.find(x => x.id === id); if (!o) return false;
-  const c = ptOuvrage(o);
-  etat.ov = o; etat.route = null; etat.ref = null; etat.D = null; etat.rangs = []; etat.actif = -1; etat.sCam = null;
+  const G = (await geoOuvrages())[id] || null;
+  const c = G ? [(G.a[0] + G.b[0]) / 2, (G.a[1] + G.b[1]) / 2] : ptOuvrage(o);
+  etat.ov = o; etat.ovG = G; etat.route = null; etat.ref = null; etat.D = null; etat.rangs = []; etat.actif = -1; etat.sCam = null;
   FE_VUES.ouvrage(id);
   $('choix').value = 'o:' + id; $('cart').textContent = '⛰';
   $('titre').innerHTML = '<small>' + esc(o.route || '') + ' · ' + String(o.km).replace('.', ',') + ' km</small>';
   LON0 = c[0]; LAT0 = c[1]; CX = Math.cos(LAT0 * Math.PI / 180);
-  const memo = +localStorage.getItem('fe-geo-zoom');
-  etat.K = $('scene').clientHeight / Math.min(memo > 0 ? memo : 30000, 60000);
+  // l'ouvrage occupe un peu plus de la moitié de l'écran
+  const sc = $('scene'), cote = Math.min(sc.clientWidth, sc.clientHeight);
+  etat.K = Math.max(kDeNiveau(0), Math.min(kDeNiveau(100), G ? cote * 0.55 / Math.max(300, G.longueur) : sc.clientHeight / 30000));
   $('niveau').value = niveauDeK(etat.K);
   scrollTo({ top: 0, behavior: 'instant' });
   dessinerOuvrage(); dessinerMini(); majMiniIci({ x: 0, y: 0 });
@@ -563,7 +659,7 @@ function detailOuvrage(o) {
     + '<div class="sous">' + esc(o.route || '') + ' · ' + String(o.km).replace('.', ',') + ' km</div>'
     + '<div class="bloc"><div class="aide" style="margin-bottom:10px">Fermeture de l\'ouvrage entier' + (o.double_sens ? ' — <b>segment à double sens</b> : choisissez la direction dans la fenêtre de fermeture de WME' : '') + '.</div><div class="actions">'
     + (o.sens || []).filter(Boolean).map(x => b(x.f, 'Fermé vers ' + x.vers)).join('') + b(o.tout, 'Fermé dans les deux sens', true) + '</div></div>'
-    + '<p class="aide">Un bouton ouvre WME avec les segments de l\'ouvrage déjà sélectionnés. Un clic sur le cartouche d\'une autoroute l\'ouvre à cet endroit.</p>';
+    + '<p class="aide">Un bouton, ou un clic sur une voie de l\'ouvrage sur la carte, ouvre WME avec les segments déjà sélectionnés. Un clic sur le cartouche d\'une autoroute l\'ouvre à cet endroit.</p>';
 }
 function detail() {
   if (etat.ov) return detailOuvrage(etat.ov);
@@ -628,6 +724,14 @@ $('scene').addEventListener('wheel', ev => { if (!ev.ctrlKey) return; ev.prevent
 /* ================= Survol et clic sur la carte ================= */
 const bulle = $('bulle');
 $('monde').addEventListener('pointermove', ev => {
+  const v = ev.target.closest('.ov-voie');
+  if (etat.ov) {
+    if (!v) { bulle.classList.remove('vu'); return; }
+    const sv = (etat.ov.sens || [])[+v.dataset.k];
+    bulle.innerHTML = sv ? 'Fermé vers ' + esc(sv.vers) + '<small>' + esc(etat.ov.titre) + ' · ' + sv.f.ids.length + ' segment(s) · clic : ouvrir WME' + (etat.ov.double_sens ? ' · segment à double sens : choisir la direction dans WME' : '') + '</small>' : 'Pas de voie dans ce sens';
+    bulle.style.left = Math.min(innerWidth - 300, ev.clientX + 16) + 'px'; bulle.style.top = (ev.clientY + 16) + 'px'; bulle.classList.add('vu');
+    return;
+  }
   const g = ev.target.closest('.geste');
   document.querySelectorAll('.geste.vu').forEach(x => { if (x !== g) x.classList.remove('vu'); });
   if (!g) { bulle.classList.remove('vu'); return; }
@@ -648,6 +752,8 @@ $('monde').addEventListener('click', ev => {
     window.open(lien(l), '_blank', 'noopener'); return;
   }
   const v = ev.target.closest('.voisin-c'); if (v) { ouvrirAutre(v.dataset.route); return; }
+  const ov = ev.target.closest('.ov-voie');
+  if (ov && etat.ov && !ov.classList.contains('absent')) { const sv = (etat.ov.sens || [])[+ov.dataset.k]; if (sv) window.open(lien(sv.f), '_blank', 'noopener'); return; }
   const e = ev.target.closest('[data-i]'); if (!e) return;
   const r = etat.rangs[+e.dataset.i], q = e.dataset.c ? r[e.dataset.c] : pRang(r);
   if (e.classList.contains('bif') && +e.dataset.i === etat.actif && routeLiee(q)) { ouvrirAutre(routeLiee(q), ancreP(q)); return; }
@@ -677,7 +783,7 @@ function ouvrirAutre(route, cible) {
   charger(route, cible || (etat.ov ? ptOuvrage(etat.ov) : etat.ref ? geoDe((p => [p.x, p.y])(aS(etat.ref, etat.sCam ?? cibleS()))) : null));
 }
 async function charger(route, cible) {
-  if (String(route).startsWith('o:')) { if (chargerOuvrage(route.slice(2))) return; route = FE_VUES.depart(Object.keys(RESEAU), 'A7'); }
+  if (String(route).startsWith('o:')) { if (await chargerOuvrage(route.slice(2))) return; route = FE_VUES.depart(Object.keys(RESEAU), 'A7'); }
   etat.ov = null;
   etat.route = route; etat.sCam = null; etat.actif = -1;
   FE_VUES.route(route);
