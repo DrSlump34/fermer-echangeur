@@ -5,7 +5,8 @@
 (() => {
   const VUES = [['carte', 'Carte'], ['lineaire', 'Linéaire'], ['tableau', 'Tableau']];
   const lireEtat = () => { try { return JSON.parse(localStorage.getItem('fe-etat') || '{}'); } catch (e) { return {}; } };
-  let courante = null, route = null;
+  let courante = null, route = null, ouvrage = null;
+  const ecrire = f => { const e = lireEtat(); f(e); try { localStorage.setItem('fe-etat', JSON.stringify(e)); } catch (x) {} };
   const css = document.createElement('style');
   css.textContent = `
   /* même place dans les trois vues : en haut à droite, centré dans une barre de 58 px (la barre lui laisse la place) ;
@@ -21,23 +22,39 @@
   function liens() {
     const nav = document.getElementById('vues'); if (!nav) return;
     nav.innerHTML = VUES.map(([v, t]) => '<a data-v="' + v + '"' + (v === courante ? ' class="on" aria-current="page"' : '')
-      + ' href="' + v + '.html' + (route ? '?r=' + encodeURIComponent(route) : '') + '">' + t + '</a>').join('');
+      + ' href="' + v + '.html' + (ouvrage ? '?o=' + encodeURIComponent(ouvrage) : route ? '?r=' + encodeURIComponent(route) : '') + '">' + t + '</a>').join('');
   }
   window.FE_VUES = {
     // la page s'annonce : elle devient la dernière vue utilisée
     init(vue) { courante = vue; try { localStorage.setItem('fe-vue', vue); } catch (e) {} liens(); },
     // l'autoroute affichée a changé : on la retient et les liens vers les autres vues la gardent
     route(r) {
-      route = r;
-      if (r) { const e = lireEtat(); e.route = r; try { localStorage.setItem('fe-etat', JSON.stringify(e)); } catch (x) {} }
+      route = r; ouvrage = null;
+      if (r) ecrire(e => { e.route = r; e.sel = r; });
       const q = r ? '?r=' + encodeURIComponent(r) : '';
-      if (r && new URLSearchParams(location.search).get('r') !== r) history.replaceState(history.state, '', location.pathname + q);
+      if (r && location.search !== q) history.replaceState(history.state, '', location.pathname + q);
       liens();
+    },
+    // un tunnel, un pont, un viaduc : retenu comme dernière sélection (« o:<id> »), transmis par ?o=…
+    ouvrage(id) {
+      ouvrage = id; route = null;
+      ecrire(e => { e.sel = 'o:' + id; });
+      const q = '?o=' + encodeURIComponent(id);
+      if (location.search !== q) history.replaceState(history.state, '', location.pathname + q);
+      liens();
+    },
+    // l'ouvrage par lequel la page doit commencer, s'il y en a un (?o=…, sinon la dernière sélection, sauf ?r=…)
+    departOuvrage(ids) {
+      const p = new URLSearchParams(location.search), u = p.get('o');
+      if (u && ids.includes(u)) return u;
+      if (p.get('r')) return null;
+      const s = lireEtat().sel;
+      return s && s.startsWith('o:') && ids.includes(s.slice(2)) ? s.slice(2) : null;
     },
     // l'autoroute par laquelle la page doit commencer (parmi celles qu'elle connaît)
     depart(connues, defaut) {
       const ok = r => r && (!connues || connues.includes(r));
-      const u = new URLSearchParams(location.search).get('r'), m = lireEtat().route;
+      const u = new URLSearchParams(location.search).get('r'), m = lireEtat().route;  // la dernière AUTOROUTE, même après un ouvrage
       return ok(u) ? u : ok(m) ? m : defaut;
     },
   };

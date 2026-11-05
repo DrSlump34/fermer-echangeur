@@ -44,6 +44,8 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 .voisin-c rect { fill: var(--cartouche); stroke: #fff; stroke-width: 1.5; transition: stroke-width var(--t); }
 .voisin-c:hover rect { stroke: var(--accent); stroke-width: 3; }
 .act.autre-route { border-color: var(--cartouche); }
+.ov-m rect { fill: #334155; stroke: #fff; stroke-width: 2; } .ov-m text { font: 800 13px ui-sans-serif, system-ui; fill: #fff; dominant-baseline: central; }
+.ov-m .lib { font: 700 14px ui-sans-serif, system-ui; fill: var(--texte); paint-order: stroke; stroke: var(--fond); stroke-width: 4px; }
 .voisin-c text { font: 800 11px ui-sans-serif, system-ui; fill: #fff; text-anchor: middle; dominant-baseline: central; }
 .ville circle { fill: var(--ville); }
 .ville text { font: 600 12px ui-sans-serif, system-ui; fill: var(--ville); paint-order: stroke; stroke: var(--fond); stroke-width: 3px; }
@@ -161,7 +163,8 @@ function texteGeste(k, p) {
   return k === 'tout' ? 'Tout fermer' : GESTES.find(g => g.k === k).txt;
 }
 const KIND = { echangeur: 'Échangeur', aire: 'Aire', bifurcation: 'Bifurcation', entree: 'Entrée', autre: 'Sortie sans numéro', peage: 'Péage' };
-const etat = { route: null, D: null, G: null, K: 0, ref: null, rangs: [], sCam: null, actif: -1, aires: true };
+const etat = { route: null, D: null, G: null, K: 0, ref: null, rangs: [], sCam: null, actif: -1, aires: true, ov: null };
+let OUVRAGES = [];
 const VOISINS = {};
 let RESEAU = null, VILLES = null;
 
@@ -460,6 +463,63 @@ function dessiner() {
   $('echelle').textContent = (kmEcran < 10 ? kmEcran.toFixed(1) : Math.round(kmEcran)) + ' km';
 }
 
+/* ================= Un ouvrage : le réseau des autoroutes autour, l'ouvrage au centre ================= */
+const ptOuvrage = o => (o.tout && o.tout.c) || ((o.sens || []).find(Boolean) || {}).f.c;
+function dessinerOuvrage() {
+  const o = etat.ov, k = etat.K, sc = $('scene'), X = q => [q[0] * k, q[1] * k];
+  const R = Math.max(sc.clientWidth, sc.clientHeight) / k * 0.8, dedans = ([x, y]) => Math.abs(x) < R && Math.abs(y) < R;
+  let h = '';
+  for (const [r, parts] of Object.entries(RESEAU)) {
+    // cartouche posé SUR la route, à 90 px de l'ouvrage le long du tracé (le tracé simplifié a des sommets espacés
+    // de plusieurs km : le sommet le plus proche tombait hors de l'écran, ou sous le repère de l'ouvrage)
+    let meilleur = null, d = 1e18;
+    for (const p of parts) {
+      const P = p.map(m); if (!P.some(dedans)) continue;
+      const Q = P.map(X);
+      h += pl(simplifierPx(Q, 1.2), 'voisin');
+      for (let i = 1; i < Q.length; i++) {
+        const [ax, ay] = Q[i - 1], [bx, by] = Q[i], dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy) || 1e-9;
+        const t = Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (L * L))), px = ax + t * dx, py = ay + t * dy, e = Math.hypot(px, py);
+        if (e < d) { d = e; const u = Math.min(90, L * (1 - t)); meilleur = [px + dx / L * u, py + dy / L * u]; }
+      }
+    }
+    if (meilleur && Math.hypot(meilleur[0], meilleur[1]) < 40) meilleur = null;   // au bout du tracé, sous le repère : on ne le pose pas
+    if (meilleur) {
+      const q = meilleur, nom = r.replace(/^anneau-/, '⟳ ').replace(/-/g, ' '), w = 14 + nom.length * 7;
+      h += '<g class="voisin-c" data-route="' + esc(r) + '" transform="translate(' + q[0].toFixed(1) + ',' + q[1].toFixed(1) + ')"><title>Ouvrir ' + esc(nom) + '</title><rect x="' + (-w / 2) + '" y="-10" width="' + w + '" height="20" rx="5"/><text>' + esc(nom) + '</text></g>';
+    }
+  }
+  for (const [nom, lon, lat, pop] of VILLES) {
+    const q = m([lon, lat]); if (!dedans(q)) continue;
+    if (pop < 15000 && k < 0.05) continue;
+    const Q = X(q);
+    h += '<g class="ville' + (pop > 60000 ? ' grande' : '') + '" transform="translate(' + Q[0].toFixed(1) + ',' + Q[1].toFixed(1) + ')"><circle r="' + (pop > 60000 ? 4.5 : 3) + '"/><text x="8" y="4">' + esc(nom) + '</text></g>';
+  }
+  h += '<g class="ov-m"><rect x="-15" y="-15" width="30" height="30" rx="7"/><text x="0" text-anchor="middle">⛰</text><text class="lib" x="22">' + esc(o.titre) + '</text></g>';
+  $('monde').innerHTML = h;
+  $('monde').style.transform = 'translate(' + (sc.clientWidth / 2).toFixed(1) + 'px,' + (sc.clientHeight * 0.45).toFixed(1) + 'px)';
+  $('piste').style.height = '0px';
+  const kmEcran = sc.clientHeight / k / 1000;
+  $('echelle').textContent = (kmEcran < 10 ? kmEcran.toFixed(1) : Math.round(kmEcran)) + ' km';
+}
+function chargerOuvrage(id) {
+  const o = OUVRAGES.find(x => x.id === id); if (!o) return false;
+  const c = ptOuvrage(o);
+  etat.ov = o; etat.route = null; etat.ref = null; etat.D = null; etat.rangs = []; etat.actif = -1; etat.sCam = null;
+  FE_VUES.ouvrage(id);
+  $('choix').value = 'o:' + id; $('cart').textContent = '⛰';
+  $('titre').innerHTML = '<small>' + esc(o.route || '') + ' · ' + String(o.km).replace('.', ',') + ' km</small>';
+  LON0 = c[0]; LAT0 = c[1]; CX = Math.cos(LAT0 * Math.PI / 180);
+  const memo = +localStorage.getItem('fe-geo-zoom');
+  etat.K = $('scene').clientHeight / Math.min(memo > 0 ? memo : 30000, 60000);
+  $('niveau').value = niveauDeK(etat.K);
+  scrollTo({ top: 0, behavior: 'instant' });
+  dessinerOuvrage(); dessinerMini(); majMiniIci({ x: 0, y: 0 });
+  $('pos').innerHTML = '<b>' + esc(o.titre) + '</b>'; $('prog').style.width = '0';
+  detail();
+  return true;
+}
+
 /* ================= Défilement ================= */
 const cibleS = () => sDeSig(etat.ref, Math.max(0, Math.min(etat.ref.sigma, scrollY / etat.K)));
 const allerS = (s, doux) => scrollTo({ top: sigDeS(etat.ref, s) * etat.K, behavior: doux ? 'smooth' : 'instant' });
@@ -497,7 +557,16 @@ function bloc(p, ci) {
     + (p.f.tout ? '<a class="act large" style="border-color:var(--rouge)" target="_blank" rel="noopener" href="' + esc(lien(p.f.tout)) + '">' + ICO.interdit + ICO.interdit + '<span>Tout fermer : ' + esc(p.lib_tout || '') + '</span></a>' : '')
     + '</div>' + (window.FE_ADMIN ? FE_ADMIN.panneau(p, ci) : '') + '</div>';
 }
+function detailOuvrage(o) {
+  const b = (l, t, large) => l ? '<a class="act' + (large ? ' large' : '') + '" target="_blank" rel="noopener" href="' + esc(lien(l)) + '">' + ICO.interdit + '<span>' + esc(t) + '</span></a>' : '';
+  $('detail').innerHTML = '<h3><span class="num" style="background:#334155;color:#fff;box-shadow:none">⛰</span>' + esc(o.titre) + '</h3>'
+    + '<div class="sous">' + esc(o.route || '') + ' · ' + String(o.km).replace('.', ',') + ' km</div>'
+    + '<div class="bloc"><div class="aide" style="margin-bottom:10px">Fermeture de l\'ouvrage entier' + (o.double_sens ? ' — <b>segment à double sens</b> : choisissez la direction dans la fenêtre de fermeture de WME' : '') + '.</div><div class="actions">'
+    + (o.sens || []).filter(Boolean).map(x => b(x.f, 'Fermé vers ' + x.vers)).join('') + b(o.tout, 'Fermé dans les deux sens', true) + '</div></div>'
+    + '<p class="aide">Un bouton ouvre WME avec les segments de l\'ouvrage déjà sélectionnés. Un clic sur le cartouche d\'une autoroute l\'ouvre à cet endroit.</p>';
+}
 function detail() {
+  if (etat.ov) return detailOuvrage(etat.ov);
   if (window.FE_ADMIN) FE_ADMIN.reset();
   const r = etat.rangs[etat.actif];
   if (!r) { $('detail').innerHTML = '<p class="aide">Faites défiler : la carte avance le long de l\'autoroute.</p>'; return; }
@@ -535,7 +604,7 @@ function majMiniIci(p) {
   const q = MINI.f([p.x / (111320 * CX) + LON0, -p.y / 110570 + LAT0]);
   c.setAttribute('cx', q[0].toFixed(1)); c.setAttribute('cy', q[1].toFixed(1));
 }
-$('mini').onclick = ev => { const r = $('mini').getBoundingClientRect(); allerS(projeter(etat.ref, m(MINI.inv(ev.clientX - r.left, ev.clientY - r.top))), false); };
+$('mini').onclick = ev => { if (!etat.ref) return; const r = $('mini').getBoundingClientRect(); allerS(projeter(etat.ref, m(MINI.inv(ev.clientX - r.left, ev.clientY - r.top))), false); };
 
 /* ================= Zoom : curseur, boutons, + et −, Ctrl + molette (et pincement du pavé tactile) ================= */
 const KM_MIN = 1.5, KM_MAX = 400;   // hauteur de carte visible
@@ -543,6 +612,7 @@ const kDeNiveau = n => $('scene').clientHeight / (1000 * KM_MAX * Math.pow(KM_MI
 const niveauDeK = k => 100 * Math.log($('scene').clientHeight / (1000 * k) / KM_MAX) / Math.log(KM_MIN / KM_MAX);
 function zoomer(k) {
   k = Math.max(kDeNiveau(0), Math.min(kDeNiveau(100), k));
+  if (etat.ov) { etat.K = k; $('niveau').value = niveauDeK(k); localStorage.setItem('fe-geo-zoom', String($('scene').clientHeight / k)); dessinerOuvrage(); return; }
   if (Math.abs(k - etat.K) / etat.K < 0.002) return;
   const s = etat.sCam ?? cibleS();
   etat.K = k; $('niveau').value = niveauDeK(k);
@@ -592,7 +662,7 @@ document.addEventListener('keydown', ev => {
   } else if (ev.key === '+' || ev.key === '=') zoomer(etat.K * 1.5);
   else if (ev.key === '-') zoomer(etat.K / 1.5);
 });
-addEventListener('resize', () => { if (etat.ref) { dessiner(); dessinerMini(); } });
+addEventListener('resize', () => { if (etat.ov) { dessinerOuvrage(); dessinerMini(); majMiniIci({ x: 0, y: 0 }); } else if (etat.ref) { dessiner(); dessinerMini(); } });
 
 /* ================= Chargement ================= */
 async function chargerD(route) { return fetch('d/' + encodeURIComponent(route) + '.json', { cache: 'no-store' }).then(x => x.json()); }
@@ -604,9 +674,11 @@ const routeLiee = p => p && p.kind === 'bifurcation' && p.lien && p.lien.route &
 function ouvrirAutre(route, cible) {
   if (!route || route === etat.route || !RESEAU[route]) return;
   bulle.classList.remove('vu');
-  charger(route, cible || (etat.ref ? geoDe((p => [p.x, p.y])(aS(etat.ref, etat.sCam ?? cibleS()))) : null));
+  charger(route, cible || (etat.ov ? ptOuvrage(etat.ov) : etat.ref ? geoDe((p => [p.x, p.y])(aS(etat.ref, etat.sCam ?? cibleS()))) : null));
 }
 async function charger(route, cible) {
+  if (String(route).startsWith('o:')) { if (chargerOuvrage(route.slice(2))) return; route = FE_VUES.depart(Object.keys(RESEAU), 'A7'); }
+  etat.ov = null;
   etat.route = route; etat.sCam = null; etat.actif = -1;
   FE_VUES.route(route);
   $('choix').value = route;
@@ -629,7 +701,7 @@ async function charger(route, cible) {
   else scrollTo({ top: 0, behavior: 'instant' });
 }
 $('choix').onchange = e => charger(e.target.value);
-$('aires').onchange = e => { etat.aires = e.target.checked; const s = cibleS(); etat.rangs = construireRangs(); etat.actif = -1; dessiner(); allerS(s, false); };
+$('aires').onchange = e => { if (!etat.ref) return; etat.aires = e.target.checked; const s = cibleS(); etat.rangs = construireRangs(); etat.actif = -1; dessiner(); allerS(s, false); };
 
 // pour le mode administration (admin.js, servi seulement par admin.py sur le poste de l'auteur)
 window.GEO = {
@@ -657,10 +729,15 @@ window.GEO = {
   [RESEAU, VILLES] = await Promise.all([fetch('geo/_reseau.json').then(x => x.json()), fetch('geo/_villes.json').then(x => x.json())]);
   const cle = r => r.startsWith('anneau-') ? [1, 0, r] : [0, parseInt(r.slice(1), 10) || 0, r];
   const routes = Object.keys(RESEAU).sort((a, b) => { const x = cle(a), y = cle(b); return x[0] - y[0] || x[1] - y[1] || (x[2] < y[2] ? -1 : 1); });
-  $('choix').innerHTML = routes.map(r => '<option value="' + esc(r) + '">' + esc(r.replace(/^anneau-/, '⟳ ').replace(/-/g, ' ')) + '</option>').join('');
+  OUVRAGES = await fetch('d/ouvrages.json').then(x => x.json()).catch(() => []);
+  const opt = r => '<option value="' + esc(r) + '">' + esc(r.replace(/^anneau-/, '⟳ ').replace(/-/g, ' ')) + '</option>';
+  $('choix').innerHTML = (OUVRAGES.length ? '<optgroup label="Tunnels, ponts, viaducs">' + OUVRAGES.map(o => '<option value="o:' + esc(o.id) + '">⛰ ' + esc(o.titre) + '</option>').join('') + '</optgroup>' : '')
+    + '<optgroup label="Autoroutes">' + routes.filter(r => !r.startsWith('anneau-')).map(opt).join('') + '</optgroup>'
+    + '<optgroup label="Rocades et périphériques">' + routes.filter(r => r.startsWith('anneau-')).map(opt).join('') + '</optgroup>';
   // la dernière autoroute vue (ou celle de l'adresse ?r=…), commune aux trois vues
   FE_VUES.init('carte');
-  await charger(FE_VUES.depart(routes, 'A7'));
+  const ov0 = FE_VUES.departOuvrage(OUVRAGES.map(o => o.id));
+  await charger(ov0 ? 'o:' + ov0 : FE_VUES.depart(routes, 'A7'));
   requestAnimationFrame(boucle);
 })();
 </script>

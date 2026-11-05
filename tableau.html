@@ -61,6 +61,10 @@ td.km { color: var(--doux); font-variant-numeric: tabular-nums; white-space: now
 .b.tout { border-color: color-mix(in srgb, var(--rouge) 45%, var(--bord)); }
 .vide { color: var(--bord); }
 .rien { padding: 40px; text-align: center; color: var(--doux); }
+/* un ouvrage (tunnel, pont, viaduc) : une fiche à la place du tableau, sans filtre ni sens */
+body.ov #cadre, body.ov #q, body.ov #sens, body.ov .puce, body.ov main > .aide { display: none; }
+#ouvrage { display: none; max-width: 640px; } body.ov #ouvrage { display: block; }
+.cartouche.ov { background: #334155; box-shadow: inset 0 0 0 2px #fff, 0 0 0 1px #334155; }
 .aide { color: var(--doux); font-size: 13px; }
 
 /* ----- panneau du point choisi ----- */
@@ -95,7 +99,8 @@ td.km { color: var(--doux); font-variant-numeric: tabular-nums; white-space: now
 </header>
 <main>
   <div class="entete" id="entete"></div>
-  <div class="cadre"><table>
+  <div id="ouvrage"></div>
+  <div class="cadre" id="cadre"><table>
     <thead><tr>
       <th class="tri" data-tri="ordre">N°<span class="fl" id="fl-ordre"></span></th>
       <th class="tri" data-tri="nom">Nom<span class="fl" id="fl-nom"></span></th>
@@ -256,7 +261,22 @@ $('aires').onchange = e => { etat.aires = e.target.checked; retenir(); dessiner(
 /* ----- chargement ----- */
 const infos = r => DONNEES.liste.find(x => x.route === r);
 async function chargerD(r) { return fetch('d/' + encodeURIComponent(r) + '.json', { cache: 'no-store' }).then(x => { if (!x.ok) throw new Error(x.status); return x.json(); }); }
+let OUVRAGES = null;
+async function chargerOuvrage(id) {
+  if (!OUVRAGES) OUVRAGES = await fetch('d/ouvrages.json').then(x => x.json());
+  const o = OUVRAGES.find(x => x.id === id); if (!o) return charger(FE_VUES.depart(null, 'A7'));
+  etat.route = null; etat.D = null; etat.rangs = []; etat.sel = null; detail();
+  FE_VUES.ouvrage(id);
+  document.body.classList.add('ov');
+  $('choix').value = 'o:' + id; $('cart').textContent = '⛰'; $('cart').classList.add('ov');
+  $('entete').innerHTML = '<h1>' + esc(o.titre) + '</h1><span class="meta">' + esc(o.route || '') + ' · ' + String(o.km).replace('.', ',') + ' km · lu dans Waze le ' + esc(DONNEES.date) + '</span>';
+  const b = (l, t, large) => l ? '<a class="act-l' + (large ? ' large' : '') + '" target="_blank" rel="noopener" href="' + esc(lien(l)) + '">' + ICO.interdit + '<span>' + esc(t) + '</span></a>' : '';
+  $('ouvrage').innerHTML = '<div class="bloc"><div class="aide" style="margin-bottom:12px">Fermeture de l\'ouvrage entier' + (o.double_sens ? ' — <b>segment à double sens</b> : choisissez la direction dans la fenêtre de fermeture de WME' : '') + '. Un bouton ouvre WME avec les segments déjà sélectionnés.</div><div class="actions">'
+    + (o.sens || []).filter(Boolean).map(x => b(x.f, 'Fermé vers ' + x.vers)).join('') + b(o.tout, 'Fermé dans les deux sens', true) + '</div></div>';
+}
 async function charger(r) {
+  if (String(r).startsWith('o:')) return chargerOuvrage(r.slice(2));
+  document.body.classList.remove('ov'); $('cart').classList.remove('ov');
   etat.route = r; etat.sel = null; detail();
   FE_VUES.route(r);
   const i = infos(r);
@@ -291,11 +311,15 @@ window.GEO = {
 (() => {
   const ordre = r => r.anneau ? [1, 0, r.route] : [0, parseInt(r.route.slice(1), 10) || 0, r.route];
   const routes = [...DONNEES.liste].sort((a, b) => { const x = ordre(a), y = ordre(b); return x[0] - y[0] || x[1] - y[1] || (x[2] < y[2] ? -1 : 1); });
-  $('choix').innerHTML = routes.map(r => '<option value="' + esc(r.route) + '">' + esc(r.anneau ? '⟳ ' + r.titre : r.route) + '</option>').join('');
+  const opt = r => '<option value="' + esc(r.route) + '">' + esc(r.anneau ? '⟳ ' + r.titre : r.route) + '</option>';
+  $('choix').innerHTML = '<optgroup label="Tunnels, ponts, viaducs">' + (DONNEES.ouvrages || []).map(o => '<option value="o:' + esc(o.id) + '">⛰ ' + esc(o.titre) + '</option>').join('') + '</optgroup>'
+    + '<optgroup label="Autoroutes">' + routes.filter(r => !r.anneau).map(opt).join('') + '</optgroup>'
+    + '<optgroup label="Rocades et périphériques">' + routes.filter(r => r.anneau).map(opt).join('') + '</optgroup>';
   $('aires').checked = etat.aires;
   // la dernière autoroute vue (ou celle de l'adresse ?r=…), commune aux trois vues
   FE_VUES.init('tableau');
-  charger(FE_VUES.depart(routes.map(r => r.route), 'A7'));
+  const ov0 = FE_VUES.departOuvrage((DONNEES.ouvrages || []).map(o => o.id));
+  charger(ov0 ? 'o:' + ov0 : FE_VUES.depart(routes.map(r => r.route), 'A7'));
 })();
 </script>
 </body>

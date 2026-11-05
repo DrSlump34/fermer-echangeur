@@ -205,9 +205,9 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
   </header>
   <nav class="cote" aria-label="Autoroutes">
     <div class="filtre"><input id="filtre" type="search" placeholder="Filtrer : A9, Lyon, périphérique…" autocomplete="off"></div>
+    <h2>Tunnels, ponts, viaducs</h2><ul class="routes" id="listeO"></ul>
     <h2>Autoroutes</h2><ul class="routes" id="listeA"></ul>
     <h2>Rocades et périphériques</h2><ul class="routes" id="listeR"></ul>
-    <h2>Tunnels, ponts, viaducs</h2><ul class="routes" id="listeO"></ul>
   </nav>
   <main class="centre" id="centre">
     <div class="entete" id="entete"></div>
@@ -259,7 +259,7 @@ function toast(t) { const e = $('toast'); e.textContent = t; e.classList.add('vu
 function ouvrir(l) { if (l) window.open(lien(l), '_blank', 'noopener'); }
 const etat = { route: null, data: null, rangs: [], sel: -1, cote: 'd', aires: false, sensMobile: 0 };
 try { Object.assign(etat, JSON.parse(localStorage.getItem('fe-etat') || '{}'), { data: null, rangs: [], sel: -1 }); } catch (e) {}
-const retenir = () => localStorage.setItem('fe-etat', JSON.stringify({ route: etat.route, aires: etat.aires, sensMobile: etat.sensMobile }));
+const retenir = () => { let e = {}; try { e = JSON.parse(localStorage.getItem('fe-etat') || '{}'); } catch (x) {} localStorage.setItem('fe-etat', JSON.stringify(Object.assign(e, { route: etat.route || e.route, aires: etat.aires, sensMobile: etat.sensMobile }))); };
 const cache = {};
 const sansAcc = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 let INDEX = null;
@@ -450,7 +450,7 @@ async function allerA(r, num) {
 
 /* ---------- Ouvrage : un tunnel, un pont, un viaduc, fermé en entier ---------- */
 async function ouvrage(id) {
-  etat.ouvrage = id; etat.route = null; listeRoutes($('filtre').value);
+  etat.ouvrage = id; etat.route = null; if (window.FE_VUES) FE_VUES.ouvrage(id); listeRoutes($('filtre').value);
   if (!cache.__ouvrages) cache.__ouvrages = await fetch('d/ouvrages.json').then(x => x.json());
   const o = cache.__ouvrages.find(x => x.id === id); if (!o) return;
   const bouton = (l, txt, large) => l ? '<a class="act' + (large ? ' large' : '') + '" style="min-height:64px" href="' + esc(lien(l)) + '" target="_blank" rel="noopener">' + ICO.interdit + '<span>' + esc(txt) + '</span></a>' : '';
@@ -633,7 +633,11 @@ $('fQ').oninput = async () => { const q = sansAcc($('fQ').value.trim()); ROUTES_
 listeRoutes('');
 // la dernière autoroute vue (ou celle de l'adresse ?r=…), commune aux trois vues
 FE_VUES.init('lineaire');
-allerA(FE_VUES.depart(DONNEES.liste.map(x => x.route), 'A9'));
+{
+  const ov0 = FE_VUES.departOuvrage((DONNEES.ouvrages || []).map(o => o.id));
+  if (ov0) { ouvrage(ov0); if (typeof mOuvrage === 'function') mOuvrage(ov0); }
+  else allerA(FE_VUES.depart(DONNEES.liste.map(x => x.route), 'A9'));
+}
 </script>
 </body>
 </html>
