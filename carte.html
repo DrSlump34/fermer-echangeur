@@ -14,12 +14,12 @@
 :root {
   --fond: #f4f6fa; --surface: #ffffff; --surface-2: #eef1f6; --bord: #dde3ec; --texte: #0e1726; --doux: #5b6779;
   --accent: #2563eb; --rouge: #e11d2e; --rouge-doux: #fde8ea; --vert: #10b981; --ambre: #f59e0b;
-  --panneau: #1f4fbf; --cartouche: #d91c2a; --chaussee: #9aa5b5; --chaussee-fort: #475569; --voisin: #c9d1dc; --ville: #7b8798;
+  --panneau: #1f4fbf; --cartouche: #d91c2a; --chaussee: #9aa5b5; --chaussee-fort: #475569; --voisin: #c9d1dc; --ville: #5f6e84;   /* contraste 4,8 sur le fond (audit n° 32) */
   --ombre: 0 1px 2px rgb(15 23 42 / .06), 0 8px 24px rgb(15 23 42 / .08); --r: 14px; --t: 160ms cubic-bezier(.2,.7,.2,1);
 }
 @media (prefers-color-scheme: dark) {
   :root { --fond: #0b1220; --surface: #111a2b; --surface-2: #162236; --bord: #23324a; --texte: #e6ecf5; --doux: #93a1b8;
-    --accent: #60a5fa; --rouge-doux: #3a1218; --chaussee: #46566e; --chaussee-fort: #9fb0c8; --voisin: #1f2c42; --ville: #6b7a93;
+    --accent: #60a5fa; --rouge-doux: #3a1218; --chaussee: #46566e; --chaussee-fort: #9fb0c8; --voisin: #1f2c42; --ville: #7b8798;   /* contraste 5,1 */
     --ombre: 0 1px 2px rgb(0 0 0 / .3), 0 12px 32px rgb(0 0 0 / .35); }
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -152,6 +152,9 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
   #scene { right: 0; bottom: 44vh; } #detail { top: auto; left: 0; width: auto; height: 44vh; border-left: 0; border-top: 1px solid var(--bord); }
   #mini { width: 104px; height: 110px; } .logo span, .titre small { display: none; }
 }
+#detail { overscroll-behavior: contain; }   /* le défilement du panneau n'entraîne pas la carte */
+/* téléphone, tablette : un champ sous 16 px fait zoomer iOS à la saisie (audit n° 32) */
+@media (pointer: coarse) { input:not([type=checkbox]):not([type=range]), select { font-size: 16px; } }
 </style>
 </head>
 <body>
@@ -202,6 +205,10 @@ function libTout(p, vers) {
 const KIND = { echangeur: 'Échangeur', aire: 'Aire', bifurcation: 'Bifurcation', entree: 'Entrée', autre: 'Sortie sans numéro', peage: 'Péage' };
 const etat = { route: null, D: null, G: null, K: 0, ref: null, rangs: [], sCam: null, actif: -1, aires: true, ov: null };
 let OUVRAGES = [];
+// icône d'un ouvrage : ⛰ pour un tunnel, un pont en arc pour un pont (audit n° 34 : ⛰ sur les ponts) ; texte = pour un <option>
+const icoOuv = (t, texte) => t !== 'pont' ? '⛰' : texte ? '🌉' : '<svg viewBox="0 0 24 24" width="1.2em" height="1.2em" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-label="pont" role="img"><path d="M2 15h20M4 15v5M20 15v5M4 15a8 7 0 0 1 16 0M8 15V9M12 15V8M16 15V9"/></svg>';
+const fmtKm = x => x.toFixed(1).replace('.', ',');   // km à la française (audit n° 34)
+
 const VOISINS = {};
 let RESEAU = null, VILLES = null;
 
@@ -504,7 +511,7 @@ function dessiner() {
   $('monde').innerHTML = h;
   $('piste').style.height = (ref.sigma * k + $('scene').clientHeight) + 'px';
   const kmEcran = $('scene').clientHeight / k / 1000;
-  $('echelle').textContent = (kmEcran < 10 ? kmEcran.toFixed(1) : Math.round(kmEcran)) + ' km';
+  $('echelle').textContent = (kmEcran < 10 ? fmtKm(kmEcran) : Math.round(kmEcran)) + ' km';
 }
 
 /* ================= Un ouvrage : le réseau des autoroutes autour, l'ouvrage au centre ================= */
@@ -604,13 +611,13 @@ function dessinerOuvrage() {
     const mid = auFil(Q, 0.5), nx = mid.ty, ny = -mid.tx;
     h += '<text class="ov-nom" x="' + (mid.x + nx * (O + 42)).toFixed(1) + '" y="' + (mid.y + ny * (O + 42) + 5).toFixed(1) + '" text-anchor="middle">' + esc(o.titre) + '</text>';
   } else {
-    h += '<g class="ov-m"><rect x="-15" y="-15" width="30" height="30" rx="7"/><text x="0" text-anchor="middle">⛰</text><text class="lib" x="22">' + esc(o.titre) + '</text></g>';
+    h += '<g class="ov-m"><rect x="-15" y="-15" width="30" height="30" rx="7"/>' + (o.type === 'pont' ? '<svg x="-10" y="-10" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M2 15h20M4 15v5M20 15v5M4 15a8 7 0 0 1 16 0M8 15V9M12 15V8M16 15V9"/></svg>' : '<text x="0" text-anchor="middle">⛰</text>') + '<text class="lib" x="22">' + esc(o.titre) + '</text></g>';
   }
   $('monde').innerHTML = h;
   $('monde').style.transform = 'translate(' + (sc.clientWidth / 2).toFixed(1) + 'px,' + (sc.clientHeight * 0.5).toFixed(1) + 'px)';
   $('piste').style.height = '0px';
   const kmEcran = sc.clientHeight / k / 1000;
-  $('echelle').textContent = (kmEcran < 10 ? kmEcran.toFixed(1) : Math.round(kmEcran)) + ' km';
+  $('echelle').textContent = (kmEcran < 10 ? fmtKm(kmEcran) : Math.round(kmEcran)) + ' km';
 }
 async function chargerOuvrage(id) {
   const o = OUVRAGES.find(x => x.id === id); if (!o) return false;
@@ -620,7 +627,7 @@ async function chargerOuvrage(id) {
   const c = G ? [(G.a[0] + G.b[0]) / 2, (G.a[1] + G.b[1]) / 2] : ptOuvrage(o);
   etat.ov = o; etat.ovG = G; etat.route = null; etat.ref = null; etat.D = null; etat.rangs = []; etat.actif = -1; etat.sCam = null;
   FE_VUES.ouvrage(id);
-  $('choix').value = 'o:' + id; $('cart').textContent = '⛰';
+  $('choix').value = 'o:' + id; $('cart').innerHTML = icoOuv(o.type);
   $('titre').innerHTML = '<small>' + esc(o.route || '') + ' · ' + String(o.km).replace('.', ',') + ' km</small>';
   LON0 = c[0]; LAT0 = c[1]; CX = Math.cos(LAT0 * Math.PI / 180);
   // l'ouvrage occupe un peu plus de la moitié de l'écran
@@ -674,7 +681,7 @@ function bloc(p, ci) {
 }
 function detailOuvrage(o) {
   const b = (l, t, large) => l ? '<a class="act' + (large ? ' large' : '') + '" target="_blank" rel="noopener" href="' + esc(lien(l)) + '">' + ICO.interdit + '<span>' + esc(t) + '</span></a>' : '';
-  $('detail').innerHTML = '<h3><span class="num" style="background:#334155;color:#fff;box-shadow:none">⛰</span>' + esc(o.titre) + '</h3>'
+  $('detail').innerHTML = '<h3><span class="num" style="background:#334155;color:#fff;box-shadow:none">' + icoOuv(o.type) + '</span>' + esc(o.titre) + '</h3>'
     + '<div class="sous">' + esc(o.route || '') + ' · ' + String(o.km).replace('.', ',') + ' km</div>'
     + '<div class="bloc"><div class="aide" style="margin-bottom:10px">Fermeture de l\'ouvrage entier' + (o.double_sens ? ' — <b>segment à double sens</b> : choisissez la direction dans la fenêtre de fermeture de WME' : '') + '.</div><div class="actions">'
     + (o.sens || []).filter(Boolean).map(x => b(x.f, 'Fermé vers ' + x.vers)).join('') + b(o.tout, 'Fermé dans les deux sens', true) + '</div></div>'
@@ -687,7 +694,7 @@ function detail() {
   if (!r) { $('detail').innerHTML = '<p class="aide">Faites défiler : la carte avance le long de l\'autoroute.</p>'; return; }
   const q = pRang(r), [cls, txt] = pastille(q), kb = etat.D.chaussees.findIndex((c, i) => i !== etat.ref.k);
   $('detail').innerHTML = '<h3><span class="num ' + cls + '">' + esc(txt) + '</span>' + esc(q.nom) + '</h3>'
-    + '<div class="sous">' + (KIND[q.kind] || '') + ' · km ' + (r.s / 1000).toFixed(1) + (q.nom_source ? ' · nom de l’échangeur d’après ' + (q.nom_source === 'lieu Waze' ? 'le lieu Waze' : esc(q.nom_source)) : '') + (q.source === 'connaissance locale' ? ' · nom arbitré (connaissance locale)' : '') + '</div>'
+    + '<div class="sous">' + (KIND[q.kind] || '') + ' · km ' + fmtKm(r.s / 1000) + (q.nom_source ? ' · nom de l’échangeur d’après ' + (q.nom_source === 'lieu Waze' ? 'le lieu Waze' : esc(q.nom_source)) : '') + (q.source === 'connaissance locale' ? ' · nom arbitré (connaissance locale)' : '') + '</div>'
     + (routeLiee(r.a) || routeLiee(r.b) ? (() => { const rl = routeLiee(r.a) || routeLiee(r.b); return '<p style="margin:0 0 12px"><a class="act autre-route" href="carte.html?r=' + encodeURIComponent(rl) + '" data-ouvrir="' + esc(rl) + '"><span class="num bif">' + esc(rl.replace(/^anneau-/, '⟳ ')) + '</span><span>Ouvrir l’' + esc(rl.replace(/^anneau-/, '')) + ' à la jonction</span></a></p>'; })() : '')
     + bloc(r.a, etat.ref.k) + (kb >= 0 ? bloc(r.b, kb) : '')
     + '<p class="aide">Survolez une bretelle sur la carte : un clic ouvre WME avec les segments sélectionnés. <kbd>↓</kbd> <kbd>↑</kbd> échangeur suivant ou précédent, <kbd>+</kbd> <kbd>−</kbd> ou <kbd>Ctrl</kbd> + molette pour le zoom.</p>';
@@ -738,6 +745,11 @@ function zoomer(k) {
 $('plus').onclick = () => zoomer(etat.K * 1.5);
 $('moins').onclick = () => zoomer(etat.K / 1.5);
 $('niveau').oninput = e => zoomer(kDeNiveau(+e.target.value));
+// pincement à deux doigts (tablette) : zoom de la carte ; un doigt garde le défilement (audit n° 32, pincement bloqué par touch-action)
+{ let d0 = 0, k0 = 0; const ecart = t => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  $('scene').addEventListener('touchstart', ev => { if (ev.touches.length === 2) { d0 = ecart(ev.touches); k0 = etat.K; } }, { passive: true });
+  $('scene').addEventListener('touchmove', ev => { if (ev.touches.length !== 2 || !d0) return; ev.preventDefault(); zoomer(k0 * ecart(ev.touches) / d0); }, { passive: false });
+  $('scene').addEventListener('touchend', ev => { if (ev.touches.length < 2) d0 = 0; }, { passive: true }); }
 $('scene').addEventListener('wheel', ev => { if (!ev.ctrlKey) return; ev.preventDefault(); zoomer(etat.K * Math.exp(-ev.deltaY * 0.004)); }, { passive: false });
 
 /* ================= Survol et clic sur la carte ================= */
@@ -880,7 +892,7 @@ window.GEO = {
   const routes = Object.keys(RESEAU).sort((a, b) => { const x = cle(a), y = cle(b); return x[0] - y[0] || x[1] - y[1] || (x[2] < y[2] ? -1 : 1); });
   OUVRAGES = await fetch('d/ouvrages.json').then(x => x.json()).catch(() => []);
   const opt = r => '<option value="' + esc(r) + '">' + esc(r.replace(/^anneau-/, '⟳ ').replace(/-/g, ' ')) + '</option>';
-  $('choix').innerHTML = (OUVRAGES.length ? '<optgroup label="Tunnels, ponts, viaducs">' + OUVRAGES.map(o => '<option value="o:' + esc(o.id) + '">⛰ ' + esc(o.titre) + '</option>').join('') + '</optgroup>' : '')
+  $('choix').innerHTML = (OUVRAGES.length ? '<optgroup label="Tunnels, ponts, viaducs">' + OUVRAGES.map(o => '<option value="o:' + esc(o.id) + '">' + icoOuv(o.type, 1) + ' ' + esc(o.titre) + '</option>').join('') + '</optgroup>' : '')
     + '<optgroup label="Autoroutes">' + routes.filter(r => !r.startsWith('anneau-')).map(opt).join('') + '</optgroup>'
     + '<optgroup label="Rocades et périphériques">' + routes.filter(r => r.startsWith('anneau-')).map(opt).join('') + '</optgroup>';
   // la dernière autoroute vue (ou celle de l'adresse ?r=…), commune aux trois vues
