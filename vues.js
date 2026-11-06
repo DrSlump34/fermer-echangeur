@@ -6,6 +6,10 @@
   const VUES = [['carte', 'Carte'], ['lineaire', 'Linéaire'], ['tableau', 'Tableau']];
   const lireEtat = () => { try { return JSON.parse(localStorage.getItem('fe-etat') || '{}'); } catch (e) { return {}; } };
   let courante = null, route = null, ouvrage = null;
+  // le point affiché (id d'un de ses segments) : ?p=… dans l'adresse et dans les liens vers les autres vues, pour qu'un
+  // changement de vue garde le point et qu'on puisse partager l'adresse d'un échangeur précis (audit n° 31)
+  let point = new URLSearchParams(location.search).get('p'), pointDepart = point;
+  const adresse = () => ouvrage ? '?o=' + encodeURIComponent(ouvrage) : route ? '?r=' + encodeURIComponent(route) + (point ? '&p=' + encodeURIComponent(point) : '') : '';
   const ecrire = f => { const e = lireEtat(); f(e); try { localStorage.setItem('fe-etat', JSON.stringify(e)); } catch (x) {} };
   const css = document.createElement('style');
   css.textContent = `
@@ -22,22 +26,40 @@
   function liens() {
     const nav = document.getElementById('vues'); if (!nav) return;
     nav.innerHTML = VUES.map(([v, t]) => '<a data-v="' + v + '"' + (v === courante ? ' class="on" aria-current="page"' : '')
-      + ' href="' + v + '.html' + (ouvrage ? '?o=' + encodeURIComponent(ouvrage) : route ? '?r=' + encodeURIComponent(route) : '') + '">' + t + '</a>').join('');
+      + ' href="' + v + '.html' + adresse() + '">' + t + '</a>').join('');
   }
   window.FE_VUES = {
+    // stockage SÛR : un navigateur qui refuse le stockage du site (navigation privée, cookies bloqués) lève une
+    // exception à chaque accès ; les pages doivent s'afficher quand même, simplement sans mémoire (audit n° 14)
+    lire(cle) { try { return localStorage.getItem(cle); } catch (e) { return null; } },
+    ecrire(cle, v) { try { localStorage.setItem(cle, v); } catch (e) {} },
     // la page s'annonce : elle devient la dernière vue utilisée
     init(vue) { courante = vue; try { localStorage.setItem('fe-vue', vue); } catch (e) {} liens(); },
     // l'autoroute affichée a changé : on la retient et les liens vers les autres vues la gardent
     route(r) {
+      if (route !== null && r !== route) point = null;      // autre autoroute : le point ne vaut plus
       route = r; ouvrage = null;
       if (r) ecrire(e => { e.route = r; e.sel = r; });
-      const q = r ? '?r=' + encodeURIComponent(r) : '';
+      const q = adresse();
       if (r && location.search !== q) history.replaceState(history.state, '', location.pathname + q);
       liens();
     },
+    // le point affiché a changé (null : aucun)
+    point(id) {
+      point = id ? String(id) : null;
+      if (!route) return;
+      const q = adresse();
+      if (location.search !== q) history.replaceState(history.state, '', location.pathname + q);
+      liens();
+    },
+    // le point demandé par l'adresse à l'ouverture (une seule fois)
+    pointDepart() { const p = pointDepart; pointDepart = null; return p; },
+    // clé d'un point : l'id du premier segment de sa première action ; et « ce point porte-t-il ce segment ? »
+    clePoint(p) { if (!p) return null; for (const k of ['sortie', 'entree', 'oblig', 'tout', 'deux']) if (p.f[k] && p.f[k].ids.length) return p.f[k].ids[0]; return null; },
+    porte(p, id) { return !!p && Object.values(p.f).some(l => l && l.ids.some(i => String(i) === String(id))); },
     // un tunnel, un pont, un viaduc : retenu comme dernière sélection (« o:<id> »), transmis par ?o=…
     ouvrage(id) {
-      ouvrage = id; route = null;
+      ouvrage = id; route = null; point = null;
       ecrire(e => { e.sel = 'o:' + id; });
       const q = '?o=' + encodeURIComponent(id);
       if (location.search !== q) history.replaceState(history.state, '', location.pathname + q);

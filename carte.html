@@ -87,13 +87,13 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 .cs text { font: 800 12.5px ui-sans-serif, system-ui; fill: #111; dominant-baseline: central; pointer-events: none; }
 .cs path { fill: none; stroke: #111; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 .cs.bif rect { fill: var(--cartouche); stroke: #fff; } .cs.bif text { fill: #fff; font-size: 11px; }
-.cs.aire rect { fill: var(--vert); stroke: #fff; } .cs.aire text { fill: #fff; }
+.cs.aire rect { fill: #047857; stroke: #fff; } .cs.aire text { fill: #fff; }
 .cs.autre rect { fill: var(--surface-2); stroke: var(--bord); } .cs.autre text { fill: var(--doux); }
 .actif .cs rect { stroke: var(--accent); stroke-width: 3; }
 .pas rect { fill: #fff; stroke: #111; stroke-width: 2; }
 .pas text { font: 800 12px ui-sans-serif, system-ui; fill: #111; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 .pas.bif rect { fill: var(--cartouche); stroke: #fff; } .pas.bif text { fill: #fff; font-size: 11px; }
-.pas.aire rect { fill: var(--vert); stroke: #fff; } .pas.aire text { fill: #fff; }
+.pas.aire rect { fill: #047857; stroke: #fff; } .pas.aire text { fill: #fff; }
 .pas.autre rect { fill: var(--surface-2); stroke: var(--bord); } .pas.autre text { fill: var(--doux); }
 .actif .pas rect { stroke: var(--accent); stroke-width: 3.5; }
 .halo { pointer-events: none; fill: color-mix(in srgb, var(--accent) 14%, transparent); stroke: color-mix(in srgb, var(--accent) 45%, transparent); stroke-width: 1.5; }
@@ -127,7 +127,7 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 #detail h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 4px; font-size: 19px; }
 #detail .sous { color: var(--doux); font-size: 13px; margin-bottom: 14px; }
 .num { display: inline-grid; place-items: center; min-width: 34px; height: 26px; padding: 0 6px; border-radius: 6px; background: #fff; color: #111; font-weight: 800; font-size: 13px; box-shadow: 0 0 0 2px #111; }
-.num.aire { background: var(--vert); color: #fff; box-shadow: none; } .num.bif { background: var(--cartouche); color: #fff; box-shadow: none; font-size: 11px; } .num.autre { background: var(--surface-2); color: var(--doux); box-shadow: 0 0 0 1px var(--bord); }
+.num.aire { background: #047857; color: #fff; box-shadow: none; } .num.bif { background: var(--cartouche); color: #fff; box-shadow: none; font-size: 11px; } .num.autre { background: var(--surface-2); color: var(--doux); box-shadow: 0 0 0 1px var(--bord); }
 .bloc { border: 1px solid var(--bord); border-radius: var(--r); padding: 12px; margin-bottom: 12px; background: var(--surface); box-shadow: var(--ombre); }
 .panneau { display: inline-flex; align-items: center; gap: 8px; padding: 5px 11px; margin-bottom: 10px; border-radius: 8px; background: var(--panneau); color: #fff; font-weight: 700; font-size: 13px; box-shadow: inset 0 0 0 2px rgb(255 255 255 / .85), 0 0 0 1px var(--panneau); }
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -138,6 +138,7 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 .act svg { width: 24px; height: 24px; flex: none; }
 .aide { color: var(--doux); font-size: 13px; }
 @media (max-width: 860px) {
+  .barre { height: auto; min-height: 58px; flex-wrap: wrap; row-gap: 6px; padding: 6px 10px; }
   #scene { right: 0; bottom: 44vh; } #detail { top: auto; left: 0; width: auto; height: 44vh; border-left: 0; border-top: 1px solid var(--bord); }
   #mini { width: 104px; height: 110px; } .logo span, .titre small { display: none; }
 }
@@ -183,6 +184,11 @@ function texteGeste(k, p) {
   if (p.kind === 'aire') return { sortie: 'Accès à l\'aire fermé', oblig: 'Passage par l\'aire obligatoire', entree: 'Sortie de l\'aire fermée', deux: 'Aire : sortie fermée + passage obligatoire', tout: 'Tout fermer' }[k];
   return k === 'tout' ? 'Tout fermer' : GESTES.find(g => g.k === k).txt;
 }
+// « Échangeur fermé » automatique : ne ferme que ce sens (audit n° 27) ; un « tout » a toujours un libellé (n° 28)
+function libTout(p, vers) {
+  if (p.lib_tout === 'Échangeur fermé') return 'Échangeur fermé' + (vers ? ' vers ' + vers : '') + ' (sortie + entrée)';
+  return 'Tout fermer : ' + (p.lib_tout || 'tous les segments de ce point');
+}
 const KIND = { echangeur: 'Échangeur', aire: 'Aire', bifurcation: 'Bifurcation', entree: 'Entrée', autre: 'Sortie sans numéro', peage: 'Péage' };
 const etat = { route: null, D: null, G: null, K: 0, ref: null, rangs: [], sCam: null, actif: -1, aires: true, ov: null };
 let OUVRAGES = [];
@@ -204,7 +210,7 @@ function reference(G) {
   const bouts = parts => [parts[0][0], parts[parts.length - 1][parts[parts.length - 1].length - 1]];
   const [a, b] = bouts(ch[idx[0]]);
   let k = idx[0], sens = 1;
-  const boucle = dist(a, b) < 3000;
+  const boucle = String(etat.route || '').startsWith('anneau-') && dist(a, b) < 3000;
   if (boucle) {
     const ki = etat.D.chaussees.findIndex(c => /int/i.test(c.vers));
     if (ki >= 0 && ch[ki] && ch[ki].length) k = ki;
@@ -294,7 +300,7 @@ function simplifierPx(P, tol) {
 const pRang = r => r.a || r.b;
 function construireRangs() {
   const { D, ref } = etat, cache = p => !etat.aires && (p.kind === 'aire' || p.kind === 'peage');
-  const ancre = p => { for (const k of ['sortie', 'entree', 'oblig', 'tout', 'deux']) if (p.f[k]) return p.f[k].c; return null; };
+  const ancre = p => { if (p.ancre) return p.ancre; for (const k of ['sortie', 'entree', 'oblig', 'tout', 'deux']) if (p.f[k]) return p.f[k].c; return null; };
   // un même bout vu des deux sens (« X (sortie seule) » / « X (entrée seule) », « Fin » / « Début de l’autoroute »,
   // « Vers » / « Depuis la N296 ») se retrouve par son nom ainsi ramené
   const nomCle = n => (n || '').replace(/\s*\((?:entrée|sortie) seule\)$/, '').replace(/^(?:Début|Fin) de l’autoroute$/, '·bout').replace(/^(?:Depuis|Vers) /, '');
@@ -598,7 +604,9 @@ function dessinerOuvrage() {
 }
 async function chargerOuvrage(id) {
   const o = OUVRAGES.find(x => x.id === id); if (!o) return false;
+  const gen = ++charger.gen;
   const G = (await geoOuvrages())[id] || null;
+  if (gen !== charger.gen) return true;
   const c = G ? [(G.a[0] + G.b[0]) / 2, (G.a[1] + G.b[1]) / 2] : ptOuvrage(o);
   etat.ov = o; etat.ovG = G; etat.route = null; etat.ref = null; etat.D = null; etat.rangs = []; etat.actif = -1; etat.sCam = null;
   FE_VUES.ouvrage(id);
@@ -632,7 +640,7 @@ function boucle() {
     let best = -1, d = 1e18;
     etat.rangs.forEach((r, i) => { const e = Math.abs(r.s - etat.sCam); if (e < d) { d = e; best = i; } });
     // le panneau suit l'échangeur le plus proche du centre, sauf pendant une saisie d'administration
-    if (best !== etat.actif && !document.querySelector('#detail .saisie')) { etat.actif = best; marquer(); detail(); }
+    if (best !== etat.actif && !document.querySelector('#detail .saisie')) { etat.actif = best; marquer(); detail(); const r = etat.rangs[best]; FE_VUES.point(r ? FE_VUES.clePoint(pRang(r)) : null); }
   }
   requestAnimationFrame(boucle);
 }
@@ -650,8 +658,9 @@ function bloc(p, ci) {
   if (!p) return '<div class="bloc"><span class="panneau">→ ' + esc(c.vers) + '</span><div class="aide">Rien dans ce sens à cet endroit.</div>' + (window.FE_ADMIN ? FE_ADMIN.panneau(null, ci) : '') + '</div>';
   return '<div class="bloc"><span class="panneau">→ ' + esc(c.vers) + '</span>' + (p.dest && p.dest.length ? '<div class="aide" style="margin:-4px 0 8px">Panneau : ' + esc(p.dest.join(', ')) + '</div>' : '')
     + '<div class="actions">' + GESTES.map(g => { const l = p.f[g.k]; if (g.k === 'deux' && !l) return ''; return l ? '<a class="act' + (g.large ? ' large' : '') + '" target="_blank" rel="noopener" href="' + esc(lien(l)) + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></a>' : '<span class="act off' + (g.large ? ' large' : '') + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></span>'; }).join('')
-    + (p.f.tout ? '<a class="act large" style="border-color:var(--rouge)" target="_blank" rel="noopener" href="' + esc(lien(p.f.tout)) + '">' + ICO.interdit + ICO.interdit + '<span>Tout fermer : ' + esc(p.lib_tout || '') + '</span></a>' : '')
-    + '</div>' + (window.FE_ADMIN ? FE_ADMIN.panneau(p, ci) : '') + '</div>';
+    + (p.f.tout ? '<a class="act large" style="border-color:var(--rouge)" target="_blank" rel="noopener" href="' + esc(lien(p.f.tout)) + '">' + ICO.interdit + ICO.interdit + '<span>' + esc(libTout(p, c.vers)) + '</span></a>' : '')
+    + '</div>' + (p.sans_sortie_propre && !p.f.sortie ? '<div class="aide" style="margin:8px 0 0">' + esc('Pas de « sortie interdite » ici : la bretelle de cette branche est commune à l’autre sens ou à une autre route ; la fermer couperait aussi leur trafic. Utilisez « Tout fermer » ou la sortie obligatoire.') + '</div>' : '')
+    + (window.FE_ADMIN ? FE_ADMIN.panneau(p, ci) : '') + '</div>';
 }
 function detailOuvrage(o) {
   const b = (l, t, large) => l ? '<a class="act' + (large ? ' large' : '') + '" target="_blank" rel="noopener" href="' + esc(lien(l)) + '">' + ICO.interdit + '<span>' + esc(t) + '</span></a>' : '';
@@ -708,11 +717,11 @@ const kDeNiveau = n => $('scene').clientHeight / (1000 * KM_MAX * Math.pow(KM_MI
 const niveauDeK = k => 100 * Math.log($('scene').clientHeight / (1000 * k) / KM_MAX) / Math.log(KM_MIN / KM_MAX);
 function zoomer(k) {
   k = Math.max(kDeNiveau(0), Math.min(kDeNiveau(100), k));
-  if (etat.ov) { etat.K = k; $('niveau').value = niveauDeK(k); localStorage.setItem('fe-geo-zoom', String($('scene').clientHeight / k)); dessinerOuvrage(); return; }
+  if (etat.ov) { etat.K = k; $('niveau').value = niveauDeK(k); dessinerOuvrage(); return; }
   if (Math.abs(k - etat.K) / etat.K < 0.002) return;
   const s = etat.sCam ?? cibleS();
   etat.K = k; $('niveau').value = niveauDeK(k);
-  localStorage.setItem('fe-geo-zoom', String($('scene').clientHeight / k));
+  FE_VUES.ecrire('fe-geo-zoom', String($('scene').clientHeight / k));
   cancelAnimationFrame(zoomer.f);
   zoomer.f = requestAnimationFrame(() => { dessiner(); etat.sCam = s; allerS(s, false); });
 }
@@ -768,28 +777,49 @@ document.addEventListener('keydown', ev => {
   } else if (ev.key === '+' || ev.key === '=') zoomer(etat.K * 1.5);
   else if (ev.key === '-') zoomer(etat.K / 1.5);
 });
+// la scène et le panneau commencent sous la barre, qui peut passer sur deux lignes en fenêtre étroite (audit n° 19)
+function caler() {
+  const h = document.querySelector('.barre').offsetHeight;
+  $('scene').style.top = h + 'px';
+  $('detail').style.top = matchMedia('(max-width: 860px)').matches ? '' : h + 'px';
+}
+caler();
+addEventListener('resize', caler);
 addEventListener('resize', () => { if (etat.ov) { dessinerOuvrage(); dessinerMini(); majMiniIci({ x: 0, y: 0 }); } else if (etat.ref) { dessiner(); dessinerMini(); } });
 
 /* ================= Chargement ================= */
-async function chargerD(route) { return fetch('d/' + encodeURIComponent(route) + '.json', { cache: 'no-store' }).then(x => x.json()); }
+async function chargerD(route) { return fetch('d/' + encodeURIComponent(route) + '.json', { cache: 'no-cache' }).then(x => { if (!x.ok) throw new Error(x.status); return x.json(); }); }
 // position géographique (lon, lat) d'un point de la carte, et de la caméra
 const geoDe = q => [q[0] / (111320 * CX) + LON0, -q[1] / 110570 + LAT0];
-const ancreP = p => { for (const k of ['sortie', 'entree', 'oblig', 'tout', 'deux']) if (p && p.f[k]) return p.f[k].c; return null; };
+const ancreP = p => { if (p && p.ancre) return p.ancre; for (const k of ['sortie', 'entree', 'oblig', 'tout', 'deux']) if (p && p.f[k]) return p.f[k].c; return null; };
 // autoroute rejointe par une bifurcation, si la carte la connaît
-const routeLiee = p => p && p.kind === 'bifurcation' && p.lien && p.lien.route && RESEAU[p.lien.route] ? p.lien.route : null;
+// autoroute rejointe : sa PAGE (lien.page, le fichier qui la porte — A6a, anneau-…), pas son nom (audit n° 15)
+const routeLiee = p => { if (!p || p.kind !== 'bifurcation' || !p.lien) return null; const r = p.lien.page || p.lien.route; return r && RESEAU[r] && r !== etat.route ? r : null; };
 function ouvrirAutre(route, cible) {
   if (!route || route === etat.route || !RESEAU[route]) return;
   bulle.classList.remove('vu');
   charger(route, cible || (etat.ov ? ptOuvrage(etat.ov) : etat.ref ? geoDe((p => [p.x, p.y])(aS(etat.ref, etat.sCam ?? cibleS()))) : null));
 }
+// chargements : un jeton de génération écarte une réponse arrivée APRÈS une demande plus récente, et l'état (liste,
+// cartouche, mémoire) ne change qu'après un chargement réussi (audit n° 17)
+charger.gen = 0;
 async function charger(route, cible) {
   if (String(route).startsWith('o:')) { if (await chargerOuvrage(route.slice(2))) return; route = FE_VUES.depart(Object.keys(RESEAU), 'A7'); }
+  const gen = ++charger.gen;
+  let D, G;
+  try { [D, G] = await Promise.all([chargerD(route), fetch('geo/' + encodeURIComponent(route) + '.json').then(x => { if (!x.ok) throw new Error(x.status); return x.json(); })]); }
+  catch (e) {
+    if (gen !== charger.gen) return;
+    $('choix').value = etat.ov ? 'o:' + etat.ov.id : (etat.route || '');
+    $('pos').innerHTML = '<b>Impossible de charger ' + esc(route) + '</b> : réseau coupé ?';
+    return;
+  }
+  if (gen !== charger.gen) return;
   etat.ov = null;
   etat.route = route; etat.sCam = null; etat.actif = -1;
   FE_VUES.route(route);
   $('choix').value = route;
   $('cart').textContent = route.startsWith('anneau-') ? '⟳' : route;
-  const [D, G] = await Promise.all([chargerD(route), fetch('geo/' + encodeURIComponent(route) + '.json').then(x => x.json())]);
   etat.D = D; etat.G = G;
   $('titre').innerHTML = '<small>' + esc(D.chaussees.map(c => c.vers).join(' ↔ ')) + '</small>';
   const tous = G.chaussees.flat(2);
@@ -798,16 +828,19 @@ async function charger(route, cible) {
   etat.boite = etat.ref.pts.reduce((b, [x, y]) => [Math.min(b[0], x), Math.min(b[1], y), Math.max(b[2], x), Math.max(b[3], y)], [1e18, 1e18, -1e18, -1e18]);
   etat.rangs = construireRangs();
   etat.voisins = await voisins();
-  const memo = +localStorage.getItem('fe-geo-zoom');
+  if (gen !== charger.gen) return;
+  const memo = +FE_VUES.lire('fe-geo-zoom');
   etat.K = $('scene').clientHeight / (memo > 0 ? memo : 7000);
   $('niveau').value = niveauDeK(etat.K);
   dessiner(); dessinerMini(); detail();
   // venu d'une autre autoroute : on arrive à l'endroit le plus proche de là où l'on était (ou de la jonction)
+  const pd = cible ? null : FE_VUES.pointDepart(), rp = pd ? etat.rangs.find(r => FE_VUES.porte(r.a, pd) || FE_VUES.porte(r.b, pd)) : null;
   if (cible) { const s = projeter(etat.ref, m(cible)); etat.sCam = s; allerS(s, false); }
+  else if (rp) { etat.sCam = rp.s; allerS(rp.s, false); }       // ?p=… : le point demandé
   else scrollTo({ top: 0, behavior: 'instant' });
 }
-$('choix').onchange = e => charger(e.target.value);
-$('aires').onchange = e => { if (!etat.ref) return; etat.aires = e.target.checked; const s = cibleS(); etat.rangs = construireRangs(); etat.actif = -1; dessiner(); allerS(s, false); };
+$('choix').onchange = e => { e.target.blur(); charger(e.target.value); };   // blur : ↓ ne change plus d'autoroute à chaque frappe
+$('aires').onchange = e => { etat.aires = e.target.checked; { let x = {}; try { x = JSON.parse(FE_VUES.lire('fe-etat') || '{}'); } catch (_) {} x.aires = etat.aires; FE_VUES.ecrire('fe-etat', JSON.stringify(x)); } if (!etat.ref) return; const s = cibleS(); etat.rangs = construireRangs(); etat.actif = -1; dessiner(); allerS(s, false); };
 
 // pour le mode administration (admin.js, servi seulement par admin.py sur le poste de l'auteur)
 window.GEO = {
@@ -842,6 +875,9 @@ window.GEO = {
     + '<optgroup label="Rocades et périphériques">' + routes.filter(r => r.startsWith('anneau-')).map(opt).join('') + '</optgroup>';
   // la dernière autoroute vue (ou celle de l'adresse ?r=…), commune aux trois vues
   FE_VUES.init('carte');
+  // aires et péages : la même mémoire que les autres vues (audit n° 21)
+  try { const x = JSON.parse(FE_VUES.lire('fe-etat') || '{}'); if (typeof x.aires === 'boolean') etat.aires = x.aires; } catch (e) {}
+  $('aires').checked = etat.aires;
   const ov0 = FE_VUES.departOuvrage(OUVRAGES.map(o => o.id));
   await charger(ov0 ? 'o:' + ov0 : FE_VUES.depart(routes, 'A7'));
   requestAnimationFrame(boucle);

@@ -30,7 +30,7 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 .cartouche.anneau { background: #0f766e; box-shadow: inset 0 0 0 2px rgb(255 255 255 / .9), 0 0 0 1px #0f766e; }
 .panneau { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 8px; background: var(--panneau); color: #fff; font-weight: 700; box-shadow: inset 0 0 0 2px rgb(255 255 255 / .85), 0 0 0 1px var(--panneau); white-space: nowrap; }
 .num { display: inline-grid; place-items: center; min-width: 34px; height: 26px; padding: 0 6px; border-radius: 6px; background: #fff; color: #111; font-weight: 800; font-size: 13px; box-shadow: 0 0 0 2px #111; }
-.num.aire { background: var(--vert); color: #fff; box-shadow: none; }
+.num.aire { background: #047857; color: #fff; box-shadow: none; }
 .num.bif { background: var(--cartouche); color: #fff; box-shadow: none; font-size: 11px; }
 .num.autre { background: var(--surface-2); color: var(--doux); box-shadow: 0 0 0 1px var(--bord); font-size: 11px; }
 
@@ -153,7 +153,7 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 
 /* ===== Téléphone : une seule colonne, un seul sens, des gestes gros comme le pouce ===== */
 .mobile { display: none; }
-@media (max-width: 900px) {
+@media (max-width: 860px) {
   .app { display: none; } .mobile { display: block; }
   .m-haut { position: sticky; top: 0; z-index: 5; padding: max(10px, env(safe-area-inset-top)) 12px 10px; background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(14px); border-bottom: 1px solid var(--bord); }
   .m-ligne1 { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -189,6 +189,10 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
   .feuille input { width: 100%; min-height: 48px; padding: 0 14px; border: 1px solid var(--bord); border-radius: 12px; background: var(--surface-2); font-size: 16px; margin-bottom: 8px; outline: none; }
   .feuille .routes button { min-height: 52px; }
 }
+/* téléphone : case « Aires et péages » (audit n° 13), cible ≥ 44 px */
+.m-ligne1 { display: flex; align-items: center; gap: 8px; }
+.m-aires { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border: 1px solid var(--bord); border-radius: 999px; background: var(--surface); font-size: 14px; white-space: nowrap; }
+.m-aires input { width: 20px; height: 20px; accent-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -221,7 +225,7 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 <!-- ================================ TÉLÉPHONE ================================ -->
 <div class="mobile" id="mobile">
   <div class="m-haut">
-    <div class="m-ligne1"><button class="m-route" id="mRoute" type="button"></button></div>
+    <div class="m-ligne1"><button class="m-route" id="mRoute" type="button"></button><label class="m-aires"><input type="checkbox" id="mAires"> Aires</label></div>
     <div class="m-sens" id="mSens" role="group" aria-label="Sens de circulation"></div>
     <input class="m-q" id="mQ" type="search" inputmode="search" placeholder="N° ou nom de l'échangeur" autocomplete="off">
   </div>
@@ -236,7 +240,7 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 
 <script src="vues.js"></script>
 <script>
-const DONNEES = {"date":"04/11/2026","liste":[{"route":"A1","titre":"A1","anneau":false,"sens":["Paris","Lille"]},{"route":"A2","titre":"A2","anneau":false,"sens":["Paris","Belgique"]},{"route":"A3","titre":"A3","anneau":false,"sens":["Paris","Lille"]},{"route":"A4","titre":"A4","anneau":false,"sens":["Strasbourg","Paris"]},{"route":"A5","titre":"A5","anneau":false,"sens":["Langres","Paris"]},{"route":"A5a","titre":"A5a","anneau":false,"sens":["Corbeil-Essonnes","A5b"]},{"route":"A5b","titre":"A5b","anneau":false,"sens":["Melun","Combs-la-Ville"]},{"route":"A6","titre":"A6","anneau":false,"sens":["Lyon","Paris"]},{"route":"A6a","titre":"A6a","anneau":false,"sens":["Paris","Lyon"]},{"route":"A6b","titre":"A6b","anneau":false,"sens":["A6a","A10"]},{"route":"A7","titre":"A7","anneau":false,"sens":["Lyon","Marseille"]},{"route":"A8","titre":"A8","anneau":false,"sens":["Aix","Italie"]},{"route":"A9","titre":"A9","anneau":false,"sens":["Lyon","Barcelone"]},{"route":"A10","titre":"A10","anneau":false,"sens":["Bordeaux","Paris"]},{"route":"A11","titre":"A11","anneau":false,"sens":["Paris","Nantes"]},{"route":"A12","titre":"A12","anneau":false,"sens":["Trappes","Paris"]},{"route":"A13","titre":"A13","anneau":false,"sens":["Paris","Caen"]},{"route":"A14","titre":"A14","anneau":false,"sens":["Rouen","Paris"]},{"route":"A15","titre":"A15","anneau":false,"sens":["Cergy-Pontoise","Paris"]},{"route":"A16","titre":"A16","anneau":false,"sens":["Belgique","Paris"]},{"route":"A19","titre":"A19","anneau":false,"sens":["Orléans","Sens"]},{"route":"A20","titre":"A20","anneau":false,"sens":["Toulouse","Vierzon"]},{"route":"A21","titre":"A21","anneau":false,"sens":["Valenciennes","Béthune"]},{"route":"A22","titre":"A22","anneau":false,"sens":["Lille (sud)","Lille (nord)"]},{"route":"A23","titre":"A23","anneau":false,"sens":["Valenciennes","Lille"]},{"route":"A25","titre":"A25","anneau":false,"sens":["Dunkerque","Lille"]},{"route":"A26","titre":"A26","anneau":false,"sens":["Troyes","Calais"]},{"route":"A27","titre":"A27","anneau":false,"sens":["Tournai","Lille"]},{"route":"A28","titre":"A28","anneau":false,"sens":["Tours","Abbeville"]},{"route":"A29","titre":"A29","anneau":false,"sens":["Le Havre","Saint-Quentin"]},{"route":"A30","titre":"A30","anneau":false,"sens":["Metz","Belgique"]},{"route":"A31","titre":"A31","anneau":false,"sens":["Luxembourg","Beaune"]},{"route":"A33","titre":"A33","anneau":false,"sens":["Strasbourg","Nancy"]},{"route":"A34","titre":"A34","anneau":false,"sens":["Reims","Belgique"]},{"route":"A35","titre":"A35","anneau":false,"sens":["Bâle","Strasbourg"]},{"route":"A36","titre":"A36","anneau":false,"sens":["Beaune","Mulhouse"]},{"route":"A38","titre":"A38","anneau":false,"sens":["Dijon","A6"]},{"route":"A39","titre":"A39","anneau":false,"sens":["Dijon","Bourg-en-Bresse"]},{"route":"A40","titre":"A40","anneau":false,"sens":["Mâcon","Chamonix"]},{"route":"A41","titre":"A41","anneau":false,"sens":["Grenoble","Genève"]},{"route":"A42","titre":"A42","anneau":false,"sens":["Villeurbanne","Bourg-en-Bresse"]},{"route":"A43","titre":"A43","anneau":false,"sens":["Italie","Lyon"]},{"route":"A46","titre":"A46","anneau":false,"sens":["Villefranche-sur-Saône","Saint-Priest"]},{"route":"A47","titre":"A47","anneau":false,"sens":["Saint-Chamond","A46"]},{"route":"A48","titre":"A48","anneau":false,"sens":["Grenoble","Lyon"]},{"route":"A49","titre":"A49","anneau":false,"sens":["Valence","Grenoble"]},{"route":"A50","titre":"A50","anneau":false,"sens":["Marseille","Toulon"]},{"route":"A51","titre":"A51","anneau":false,"sens":["Grenoble","Marseille"]},{"route":"A52","titre":"A52","anneau":false,"sens":["A50","A8"]},{"route":"A54","titre":"A54","anneau":false,"sens":["Salon-de-Provence","Nîmes"]},{"route":"A55","titre":"A55","anneau":false,"sens":["Martigues","A557"]},{"route":"A57","titre":"A57","anneau":false,"sens":["Fréjus","Toulon"]},{"route":"A61","titre":"A61","anneau":false,"sens":["Narbonne","Toulouse"]},{"route":"A62","titre":"A62","anneau":false,"sens":["Bordeaux","Toulouse"]},{"route":"A63","titre":"A63","anneau":false,"sens":["Bordeaux","Espagne"]},{"route":"A64","titre":"A64","anneau":false,"sens":["Toulouse","Bayonne"]},{"route":"A65","titre":"A65","anneau":false,"sens":["Bordeaux","Pau"]},{"route":"A66","titre":"A66","anneau":false,"sens":["Andorre","Toulouse"]},{"route":"A68","titre":"A68","anneau":false,"sens":["Toulouse","Albi"]},{"route":"A69","titre":"A69","anneau":false,"sens":["Toulouse","Castres"]},{"route":"A71","titre":"A71","anneau":false,"sens":["Clermont-Ferrand","Orléans"]},{"route":"A72","titre":"A72","anneau":false,"sens":["Saint-Étienne","Clermont-Ferrand"]},{"route":"A75","titre":"A75","anneau":false,"sens":["Clermont-Ferrand","Béziers"]},{"route":"A77","titre":"A77","anneau":false,"sens":["Paris","Nevers"]},{"route":"A79","titre":"A79","anneau":false,"sens":["Montluçon","Lyon"]},{"route":"A81","titre":"A81","anneau":false,"sens":["Rennes","Le Mans"]},{"route":"A83","titre":"A83","anneau":false,"sens":["Nantes","Niort"]},{"route":"A84","titre":"A84","anneau":false,"sens":["Rennes","Caen"]},{"route":"A85","titre":"A85","anneau":false,"sens":["Vierzon","Angers"]},{"route":"A87","titre":"A87","anneau":false,"sens":["La Roche-sur-Yon","Angers"]},{"route":"A88","titre":"A88","anneau":false,"sens":["Alençon","Caen"]},{"route":"A89","titre":"A89","anneau":false,"sens":["Bordeaux","Lyon"]},{"route":"A104","titre":"A104","anneau":false,"sens":["A4","A3"]},{"route":"A106","titre":"A106","anneau":false,"sens":["Paris","A6b"]},{"route":"A115","titre":"A115","anneau":false,"sens":["A15","Taverny"]},{"route":"A126","titre":"A126","anneau":false,"sens":["A10","A6"]},{"route":"A131","titre":"A131","anneau":false,"sens":["A13","Le Havre"]},{"route":"A132","titre":"A132","anneau":false,"sens":["Le Havre","A13"]},{"route":"A140","titre":"A140","anneau":false,"sens":["Meaux (nord)","Meaux (sud)"]},{"route":"A150","titre":"A150","anneau":false,"sens":["Rouen","Yvetot"]},{"route":"A151","titre":"A151","anneau":false,"sens":["A150","A29"]},{"route":"A154","titre":"A154","anneau":false,"sens":["A13","Évreux"]},{"route":"A211","titre":"A211","anneau":false,"sens":["A21","Lens"]},{"route":"A216","titre":"A216","anneau":false,"sens":["Calais","A26"]},{"route":"A304","titre":"A304","anneau":false,"sens":["Charleville-Mézières","A34"]},{"route":"A311","titre":"A311","anneau":false,"sens":["A31","Dijon"]},{"route":"A314","titre":"A314","anneau":false,"sens":["A4","A315"]},{"route":"A315","titre":"A315","anneau":false,"sens":["A4"]},{"route":"A320","titre":"A320","anneau":false,"sens":["Sarrebruck","Metz"]},{"route":"A330","titre":"A330","anneau":false,"sens":["Nancy (nord)","Nancy (sud)"]},{"route":"A344","titre":"A344","anneau":false,"sens":["Paris","Strasbourg"]},{"route":"A352","titre":"A352","anneau":false,"sens":["A35","Strasbourg"]},{"route":"A355","titre":"A355","anneau":false,"sens":["A35","A4"]},{"route":"A391","titre":"A391","anneau":false,"sens":["Dole","A39"]},{"route":"A404","titre":"A404","anneau":false,"sens":["A40","Oyonnax"]},{"route":"A406","titre":"A406","anneau":false,"sens":["A40","A6"]},{"route":"A410","titre":"A410","anneau":false,"sens":["A41","A40"]},{"route":"A411","titre":"A411","anneau":false,"sens":["Annemasse","A40"]},{"route":"A430","titre":"A430","anneau":false,"sens":["Annecy","A43"]},{"route":"A432","titre":"A432","anneau":false,"sens":["A46","A43"]},{"route":"A450","titre":"A450","anneau":false,"sens":["A7","Brignais"]},{"route":"A480","titre":"A480","anneau":false,"sens":["A51","A48"]},{"route":"A500","titre":"A500","anneau":false,"sens":["Nice (sud)","Nice (nord)"]},{"route":"A501","titre":"A501","anneau":false,"sens":["A52","A50"]},{"route":"A507","titre":"A507","anneau":false,"sens":["A7","A50"]},{"route":"A570","titre":"A570","anneau":false,"sens":["Toulon","A57"]},{"route":"A621","titre":"A621","anneau":false,"sens":["Aéroport Blagnac","A620"]},{"route":"A624","titre":"A624","anneau":false,"sens":["Toulouse","A620"]},{"route":"A660","titre":"A660","anneau":false,"sens":["A63","Gujan-Mestras"]},{"route":"A709","titre":"A709","anneau":false,"sens":["Lyon","Espagne"]},{"route":"A710","titre":"A710","anneau":false,"sens":["A71","A89"]},{"route":"A711","titre":"A711","anneau":false,"sens":["A75","A89"]},{"route":"A714","titre":"A714","anneau":false,"sens":["Montluçon","A71"]},{"route":"A719","titre":"A719","anneau":false,"sens":["Vichy","A71"]},{"route":"A750","titre":"A750","anneau":false,"sens":["A75","Montpellier"]},{"route":"A811","titre":"A811","anneau":false,"sens":["A11","Nantes"]},{"route":"A813","titre":"A813","anneau":false,"sens":["Caen","A13"]},{"route":"A837","titre":"A837","anneau":false,"sens":["Rochefort","A10"]},{"route":"anneau-A86","titre":"A86 (Île-de-France)","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-BP-Paris","titre":"Boulevard périphérique de Paris","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Lyon","titre":"Périphérique de Lyon (BPNL, Laurent Bonnevay)","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Nantes","titre":"Périphérique de Nantes","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Toulouse","titre":"Périphérique de Toulouse","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Tours","titre":"Boulevard périphérique de Tours","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Rocade-Bordeaux","titre":"Rocade de Bordeaux","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Rocade-Rennes","titre":"Rocade de Rennes","anneau":true,"sens":["Intérieur","Extérieur"]}],"ouvrages":[{"id":"mont-blanc","titre":"Tunnel du Mont-Blanc","route":"N205","km":7.6},{"id":"frejus","titre":"Tunnel routier du Fréjus","route":"A43","km":6.7},{"id":"somport","titre":"Tunnel du Somport","route":"N134","km":2.7},{"id":"puymorens","titre":"Tunnel du Puymorens","route":"N20","km":2.5},{"id":"millau","titre":"Viaduc de Millau","route":"A75","km":2.8},{"id":"normandie","titre":"Pont de Normandie","route":"A29","km":6.9},{"id":"tancarville","titre":"Pont de Tancarville","route":"D982","km":1.5},{"id":"saint-nazaire","titre":"Pont de Saint-Nazaire","route":"D213","km":4.1},{"id":"prado-carenage","titre":"Tunnel Prado-Carénage (Marseille)","route":"A50","km":2.5},{"id":"toulon","titre":"Tunnel de Toulon","route":"A50/A57","km":3.0},{"id":"vieux-port","titre":"Tunnel du Vieux-Port (Marseille)","route":"A55/A50","km":0.7}]};
+const DONNEES = {"date":"04/11/2026","liste":[{"route":"A1","titre":"A1","anneau":false,"sens":["Paris","Lille"]},{"route":"A2","titre":"A2","anneau":false,"sens":["Paris","Belgique"]},{"route":"A3","titre":"A3","anneau":false,"sens":["Paris","Lille"]},{"route":"A4","titre":"A4","anneau":false,"sens":["Strasbourg","Paris"]},{"route":"A5","titre":"A5","anneau":false,"sens":["Langres","Paris"]},{"route":"A5a","titre":"A5a","anneau":false,"sens":["Corbeil-Essonnes","A5b"]},{"route":"A5b","titre":"A5b","anneau":false,"sens":["Melun","Combs-la-Ville"]},{"route":"A6","titre":"A6","anneau":false,"sens":["Lyon","Paris"]},{"route":"A6a","titre":"A6a","anneau":false,"sens":["Paris","Lyon"]},{"route":"A6b","titre":"A6b","anneau":false,"sens":["A6a","A10"]},{"route":"A7","titre":"A7","anneau":false,"sens":["Lyon","Marseille"]},{"route":"A8","titre":"A8","anneau":false,"sens":["Aix","Italie"]},{"route":"A9","titre":"A9","anneau":false,"sens":["Lyon","Barcelone"]},{"route":"A10","titre":"A10","anneau":false,"sens":["Bordeaux","Paris"]},{"route":"A11","titre":"A11","anneau":false,"sens":["Paris","Nantes"]},{"route":"A12","titre":"A12","anneau":false,"sens":["Trappes","Paris"]},{"route":"A13","titre":"A13","anneau":false,"sens":["Paris","Caen"]},{"route":"A14","titre":"A14","anneau":false,"sens":["Rouen","Paris"]},{"route":"A15","titre":"A15","anneau":false,"sens":["Cergy-Pontoise","Paris"]},{"route":"A16","titre":"A16","anneau":false,"sens":["Belgique","Paris"]},{"route":"A19","titre":"A19","anneau":false,"sens":["Orléans","Sens"]},{"route":"A20","titre":"A20","anneau":false,"sens":["Toulouse","Vierzon"]},{"route":"A21","titre":"A21","anneau":false,"sens":["Valenciennes","Béthune"]},{"route":"A22","titre":"A22","anneau":false,"sens":["Lille (sud)","Lille (nord)"]},{"route":"A23","titre":"A23","anneau":false,"sens":["Valenciennes","Lille"]},{"route":"A25","titre":"A25","anneau":false,"sens":["Dunkerque","Lille"]},{"route":"A26","titre":"A26","anneau":false,"sens":["Troyes","Calais"]},{"route":"A27","titre":"A27","anneau":false,"sens":["Tournai","Lille"]},{"route":"A28","titre":"A28","anneau":false,"sens":["Tours","Abbeville"]},{"route":"A29","titre":"A29","anneau":false,"sens":["Le Havre","Saint-Quentin"]},{"route":"A30","titre":"A30","anneau":false,"sens":["Metz","Belgique"]},{"route":"A31","titre":"A31","anneau":false,"sens":["Luxembourg","Beaune"]},{"route":"A33","titre":"A33","anneau":false,"sens":["Strasbourg","Nancy"]},{"route":"A34","titre":"A34","anneau":false,"sens":["Reims","Belgique"]},{"route":"A35","titre":"A35","anneau":false,"sens":["Bâle","Strasbourg"]},{"route":"A36","titre":"A36","anneau":false,"sens":["Beaune","Mulhouse"]},{"route":"A38","titre":"A38","anneau":false,"sens":["Dijon","A6"]},{"route":"A39","titre":"A39","anneau":false,"sens":["Dijon","Bourg-en-Bresse"]},{"route":"A40","titre":"A40","anneau":false,"sens":["Mâcon","Chamonix"]},{"route":"A41","titre":"A41","anneau":false,"sens":["Grenoble","Genève"]},{"route":"A42","titre":"A42","anneau":false,"sens":["Villeurbanne","Bourg-en-Bresse"]},{"route":"A43","titre":"A43","anneau":false,"sens":["Italie","Lyon"]},{"route":"A46","titre":"A46","anneau":false,"sens":["Villefranche-sur-Saône","Saint-Priest"]},{"route":"A47","titre":"A47","anneau":false,"sens":["Saint-Chamond","A46"]},{"route":"A48","titre":"A48","anneau":false,"sens":["Grenoble","Lyon"]},{"route":"A49","titre":"A49","anneau":false,"sens":["Valence","Grenoble"]},{"route":"A50","titre":"A50","anneau":false,"sens":["Marseille","Toulon"]},{"route":"A51","titre":"A51","anneau":false,"sens":["Grenoble","Marseille"]},{"route":"A52","titre":"A52","anneau":false,"sens":["A50","A8"]},{"route":"A54","titre":"A54","anneau":false,"sens":["Salon-de-Provence","Nîmes"]},{"route":"A55","titre":"A55","anneau":false,"sens":["Martigues","A557"]},{"route":"A57","titre":"A57","anneau":false,"sens":["Fréjus","Toulon"]},{"route":"A61","titre":"A61","anneau":false,"sens":["Narbonne","Toulouse"]},{"route":"A62","titre":"A62","anneau":false,"sens":["Bordeaux","Toulouse"]},{"route":"A63","titre":"A63","anneau":false,"sens":["Bordeaux","Espagne"]},{"route":"A64","titre":"A64","anneau":false,"sens":["Toulouse","Bayonne"]},{"route":"A65","titre":"A65","anneau":false,"sens":["Bordeaux","Pau"]},{"route":"A66","titre":"A66","anneau":false,"sens":["Andorre","Toulouse"]},{"route":"A68","titre":"A68","anneau":false,"sens":["Toulouse","Albi"]},{"route":"A69","titre":"A69","anneau":false,"sens":["Toulouse","Castres"]},{"route":"A71","titre":"A71","anneau":false,"sens":["Clermont-Ferrand","Orléans"]},{"route":"A72","titre":"A72","anneau":false,"sens":["Saint-Étienne","Clermont-Ferrand"]},{"route":"A75","titre":"A75","anneau":false,"sens":["Clermont-Ferrand","Béziers"]},{"route":"A77","titre":"A77","anneau":false,"sens":["Paris","Nevers"]},{"route":"A79","titre":"A79","anneau":false,"sens":["Montluçon","Lyon"]},{"route":"A81","titre":"A81","anneau":false,"sens":["Rennes","Le Mans"]},{"route":"A83","titre":"A83","anneau":false,"sens":["Nantes","Niort"]},{"route":"A84","titre":"A84","anneau":false,"sens":["Rennes","Caen"]},{"route":"A85","titre":"A85","anneau":false,"sens":["Vierzon","Angers"]},{"route":"A87","titre":"A87","anneau":false,"sens":["La Roche-sur-Yon","Angers"]},{"route":"A88","titre":"A88","anneau":false,"sens":["Alençon","Caen"]},{"route":"A89","titre":"A89","anneau":false,"sens":["Bordeaux","Lyon"]},{"route":"A104","titre":"A104","anneau":false,"sens":["A4","A3"]},{"route":"A106","titre":"A106","anneau":false,"sens":["Paris","A6b"]},{"route":"A115","titre":"A115","anneau":false,"sens":["A15","Taverny"]},{"route":"A126","titre":"A126","anneau":false,"sens":["A6","A10"]},{"route":"A131","titre":"A131","anneau":false,"sens":["A13","Le Havre"]},{"route":"A132","titre":"A132","anneau":false,"sens":["Le Havre","A13"]},{"route":"A140","titre":"A140","anneau":false,"sens":["Meaux (nord)","Meaux (sud)"]},{"route":"A150","titre":"A150","anneau":false,"sens":["Rouen","Yvetot"]},{"route":"A151","titre":"A151","anneau":false,"sens":["A150","A29"]},{"route":"A154","titre":"A154","anneau":false,"sens":["A13","Évreux"]},{"route":"A211","titre":"A211","anneau":false,"sens":["A21","Lens"]},{"route":"A216","titre":"A216","anneau":false,"sens":["Calais","A26"]},{"route":"A304","titre":"A304","anneau":false,"sens":["Charleville-Mézières","A34"]},{"route":"A311","titre":"A311","anneau":false,"sens":["A31","Dijon"]},{"route":"A314","titre":"A314","anneau":false,"sens":["A4","A315"]},{"route":"A315","titre":"A315","anneau":false,"sens":["A4"]},{"route":"A320","titre":"A320","anneau":false,"sens":["Sarrebruck","Metz"]},{"route":"A330","titre":"A330","anneau":false,"sens":["Nancy (nord)","Nancy (sud)"]},{"route":"A344","titre":"A344","anneau":false,"sens":["Paris","Strasbourg"]},{"route":"A352","titre":"A352","anneau":false,"sens":["A35","Strasbourg"]},{"route":"A355","titre":"A355","anneau":false,"sens":["A35","A4"]},{"route":"A391","titre":"A391","anneau":false,"sens":["Dole","A39"]},{"route":"A404","titre":"A404","anneau":false,"sens":["A40","Oyonnax"]},{"route":"A406","titre":"A406","anneau":false,"sens":["A40","A6"]},{"route":"A410","titre":"A410","anneau":false,"sens":["A41","A40"]},{"route":"A411","titre":"A411","anneau":false,"sens":["Annemasse","A40"]},{"route":"A430","titre":"A430","anneau":false,"sens":["Annecy","A43"]},{"route":"A432","titre":"A432","anneau":false,"sens":["A46","A43"]},{"route":"A450","titre":"A450","anneau":false,"sens":["A7","Brignais"]},{"route":"A480","titre":"A480","anneau":false,"sens":["A51","A48"]},{"route":"A500","titre":"A500","anneau":false,"sens":["Nice (sud)","Nice (nord)"]},{"route":"A501","titre":"A501","anneau":false,"sens":["A52","A50"]},{"route":"A507","titre":"A507","anneau":false,"sens":["A7","A50"]},{"route":"A570","titre":"A570","anneau":false,"sens":["Toulon","A57"]},{"route":"A621","titre":"A621","anneau":false,"sens":["Aéroport Blagnac","A620"]},{"route":"A624","titre":"A624","anneau":false,"sens":["Toulouse","A620"]},{"route":"A660","titre":"A660","anneau":false,"sens":["A63","Gujan-Mestras"]},{"route":"A709","titre":"A709","anneau":false,"sens":["Lyon","Espagne"]},{"route":"A710","titre":"A710","anneau":false,"sens":["A71","A89"]},{"route":"A711","titre":"A711","anneau":false,"sens":["A75","A89"]},{"route":"A714","titre":"A714","anneau":false,"sens":["Montluçon","A71"]},{"route":"A719","titre":"A719","anneau":false,"sens":["Vichy","A71"]},{"route":"A750","titre":"A750","anneau":false,"sens":["A75","Montpellier"]},{"route":"A811","titre":"A811","anneau":false,"sens":["A11","Nantes"]},{"route":"A813","titre":"A813","anneau":false,"sens":["Caen","A13"]},{"route":"A837","titre":"A837","anneau":false,"sens":["Rochefort","A10"]},{"route":"anneau-A86","titre":"A86 (Île-de-France)","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-BP-Paris","titre":"Boulevard périphérique de Paris","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Lyon","titre":"Périphérique de Lyon (BPNL, Laurent Bonnevay)","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Nantes","titre":"Périphérique de Nantes","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Toulouse","titre":"Périphérique de Toulouse","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Peri-Tours","titre":"Boulevard périphérique de Tours","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Rocade-Bordeaux","titre":"Rocade de Bordeaux","anneau":true,"sens":["Intérieur","Extérieur"]},{"route":"anneau-Rocade-Rennes","titre":"Rocade de Rennes","anneau":true,"sens":["Intérieur","Extérieur"]}],"ouvrages":[{"id":"mont-blanc","titre":"Tunnel du Mont-Blanc","route":"N205","km":7.6},{"id":"frejus","titre":"Tunnel routier du Fréjus","route":"A43","km":6.7},{"id":"somport","titre":"Tunnel du Somport","route":"N134","km":2.7},{"id":"puymorens","titre":"Tunnel du Puymorens","route":"N20","km":2.5},{"id":"millau","titre":"Viaduc de Millau","route":"A75","km":2.8},{"id":"normandie","titre":"Pont de Normandie","route":"A29","km":6.9},{"id":"tancarville","titre":"Pont de Tancarville","route":"D982","km":1.5},{"id":"saint-nazaire","titre":"Pont de Saint-Nazaire","route":"D213","km":4.1},{"id":"prado-carenage","titre":"Tunnel Prado-Carénage (Marseille)","route":"A50","km":2.5},{"id":"toulon","titre":"Tunnel de Toulon","route":"A50/A57","km":3.0},{"id":"vieux-port","titre":"Tunnel du Vieux-Port (Marseille)","route":"A55/A50","km":0.7}]};
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const lien = l => 'https://www.waze.com/fr/editor?env=row&lat=' + l.c[1] + '&lon=' + l.c[0] + '&zoomLevel=' + l.z + '&segments=' + l.ids.join(',');
@@ -255,11 +259,19 @@ function texteGeste(k, p) {
   if (p.kind === 'aire') return { sortie: 'Accès à l\'aire fermé', oblig: 'Passage par l\'aire obligatoire', entree: 'Sortie de l\'aire fermée', deux: 'Aire : sortie fermée + passage obligatoire' }[k];
   return GESTES.find(g => g.k === k).txt;
 }
+// libellé de « Tout fermer » : l'« Échangeur fermé » automatique ne ferme QUE ce sens (sortie + entrée) — le dire
+// (audit n° 27) ; un « tout » sans libellé reçoit un libellé générique (audit n° 28)
+// branche de collectrice sans segment propre (traiter.py, audit n° 1) : on dit pourquoi il n'y a pas de bouton
+const noteSansSortie = p => p.sans_sortie_propre && !p.f.sortie ? '<div class="aide" style="margin:8px 0 0">' + esc('Pas de « sortie interdite » ici : la bretelle de cette branche est commune à l’autre sens ou à une autre route ; la fermer couperait aussi leur trafic. Utilisez « Tout fermer » ou la sortie obligatoire.') + '</div>' : '';
+function libTout(p, vers) {
+  if (p.lib_tout === 'Échangeur fermé') return 'Échangeur fermé' + (vers ? ' vers ' + vers : '') + ' (sortie + entrée)';
+  return 'Tout fermer : ' + (p.lib_tout || 'tous les segments de ce point');
+}
 function toast(t) { const e = $('toast'); e.textContent = t; e.classList.add('vu'); clearTimeout(toast.h); toast.h = setTimeout(() => e.classList.remove('vu'), 1700); }
 function ouvrir(l) { if (l) window.open(lien(l), '_blank', 'noopener'); }
 const etat = { route: null, data: null, rangs: [], sel: -1, cote: 'd', aires: false, sensMobile: 0 };
-try { Object.assign(etat, JSON.parse(localStorage.getItem('fe-etat') || '{}'), { data: null, rangs: [], sel: -1 }); } catch (e) {}
-const retenir = () => { let e = {}; try { e = JSON.parse(localStorage.getItem('fe-etat') || '{}'); } catch (x) {} localStorage.setItem('fe-etat', JSON.stringify(Object.assign(e, { route: etat.route || e.route, aires: etat.aires, sensMobile: etat.sensMobile }))); };
+try { Object.assign(etat, JSON.parse(FE_VUES.lire('fe-etat') || '{}'), { data: null, rangs: [], sel: -1 }); } catch (e) {}
+const retenir = () => { let e = {}; try { e = JSON.parse(FE_VUES.lire('fe-etat') || '{}'); } catch (x) {} FE_VUES.ecrire('fe-etat', JSON.stringify(Object.assign(e, { route: etat.route || e.route, aires: etat.aires, sensMobile: etat.sensMobile }))); };
 const cache = {};
 const sansAcc = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 let INDEX = null;
@@ -267,7 +279,7 @@ async function index() { if (!INDEX) { try { INDEX = await fetch('d/_index.json'
 const infos = r => DONNEES.liste.find(x => x.route === r);
 const badge = (r, petit) => { const i = infos(r); return '<span class="cartouche' + (i && i.anneau ? ' anneau' : '') + '"' + (petit ? ' style="min-width:40px;height:24px;font-size:12px"' : '') + '>' + esc(i && i.anneau ? '⟳' : r) + '</span>'; };
 async function charger(r) {
-  if (!cache[r]) cache[r] = await fetch('d/' + encodeURIComponent(r) + '.json').then(x => { if (!x.ok) throw new Error(x.status); return x.json(); });
+  if (!cache[r]) cache[r] = await fetch('d/' + encodeURIComponent(r) + '.json', { cache: 'no-cache' }).then(x => { if (!x.ok) throw new Error(x.status); return x.json(); });
   return cache[r];
 }
 
@@ -353,7 +365,7 @@ function listeRoutes(filtre) {
   const ok = r => !f || sansAcc(r.route + ' ' + r.titre + ' ' + r.sens.join(' ')).includes(f) || (ROUTES_TROUVEES && ROUTES_TROUVEES.has(r.route));
   $('listeA').innerHTML = DONNEES.liste.filter(r => !r.anneau && ok(r)).map(item).join('');
   $('listeR').innerHTML = DONNEES.liste.filter(r => r.anneau && ok(r)).map(item).join('');
-  $('listeO').innerHTML = (DONNEES.ouvrages || []).filter(o => !f || (o.titre + ' ' + (o.route || '')).toLowerCase().includes(f)).map(o => '<li><button type="button" data-ouvrage="' + esc(o.id) + '" aria-current="' + (etat.ouvrage === o.id) + '"><span class="cartouche" style="background:#334155;box-shadow:inset 0 0 0 2px #fff,0 0 0 1px #334155">⛰</span><span><b>' + esc(o.titre) + '</b><small>' + esc(o.route || '') + ' · ' + o.km.toString().replace('.', ',') + ' km</small></span></button></li>').join('');
+  $('listeO').innerHTML = (DONNEES.ouvrages || []).filter(o => !f || sansAcc(o.titre + ' ' + (o.route || '')).includes(sansAcc(f))).map(o => '<li><button type="button" data-ouvrage="' + esc(o.id) + '" aria-current="' + (etat.ouvrage === o.id) + '"><span class="cartouche" style="background:#334155;box-shadow:inset 0 0 0 2px #fff,0 0 0 1px #334155">⛰</span><span><b>' + esc(o.titre) + '</b><small>' + esc(o.route || '') + ' · ' + o.km.toString().replace('.', ',') + ' km</small></span></button></li>').join('');
 }
 function entete() {
   const d = etat.data, i = infos(etat.route), [a, b] = ordreSens(d);
@@ -416,18 +428,18 @@ function blocSens(p, cote, i) {
       return l ? '<a class="act' + (g.large ? ' large' : '') + '" href="' + esc(lien(l)) + '" target="_blank" rel="noopener" data-c="' + cote + '" data-k="' + g.k + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span>' + (etat.cote === cote ? '<kbd class="k">' + g.touche + '</kbd>' : '') + '</a>'
         : '<span class="act off' + (g.large ? ' large' : '') + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></span>';
     }).join('')
-    + (p.f.tout ? '<a class="act large" style="border-color:var(--rouge)" href="' + esc(lien(p.f.tout)) + '" target="_blank" rel="noopener">' + ICO.interdit + ICO.interdit + '<span>Tout fermer : ' + esc(p.lib_tout || '') + '</span>' + (etat.cote === cote ? '<kbd class="k">5</kbd>' : '') + '</a>' : '')
-    + '</div>' + lienBif(p) + '<button class="lien-ids" type="button" data-copie="' + tous.join(',') + '">Copier les ID des segments</button></div>';
+    + (p.f.tout ? '<a class="act large" style="border-color:var(--rouge)" href="' + esc(lien(p.f.tout)) + '" target="_blank" rel="noopener">' + ICO.interdit + ICO.interdit + '<span>' + esc(libTout(p, ch.vers)) + '</span>' + (etat.cote === cote ? '<kbd class="k">5</kbd>' : '') + '</a>' : '')
+    + '</div>' + noteSansSortie(p) + lienBif(p) + '<button class="lien-ids" type="button" data-copie="' + tous.join(',') + '">Copier les ID des segments</button></div>';
 }
 function lienBif(p) {
   const l = p.lien; if (!l) return '';
-  const txt = 'Aller à l\'' + l.route + (l.vers ? (/^(interieur|exterieur)$/.test(sansAcc(l.vers)) ? ' (' + l.vers.toLowerCase() + 'e)' : ' vers ' + l.vers) : '');
-  return l.page ? '<button type="button" class="term d" style="margin-top:8px" data-route="' + esc(l.page) + '"><span class="cartouche" style="min-width:40px;height:24px;font-size:12px">' + esc(l.route) + '</span><span>' + esc(txt) + '</span><span class="term-go">›</span></button>' : '';
+  const txt = 'Aller à ' + (/^[NMD]\d/.test(l.route) ? 'la ' : 'l\'') + l.route + (l.vers ? (/^(interieur|exterieur)$/.test(sansAcc(l.vers)) ? ' (' + l.vers.toLowerCase() + 'e)' : ' vers ' + l.vers) : '');
+  return l.page && l.page !== etat.route ? '<button type="button" class="term d" style="margin-top:8px" data-route="' + esc(l.page) + '" data-depuis="' + esc(etat.route || '') + '" data-vers="' + esc(l.vers || '') + '"><span class="cartouche" style="min-width:40px;height:24px;font-size:12px">' + esc(l.route) + '</span><span>' + esc(txt) + '</span><span class="term-go">›</span></button>' : '';
 }
 function detail() {
   const r = etat.rangs[etat.sel];
   if (!r) {
-    $('detail').innerHTML = '<div class="aide"><h3 style="margin:0 0 10px">Comment ça marche</h3><p>Chaque échangeur est dessiné avec ses deux chaussées. <b>Survolez</b> une bretelle de sortie, une bretelle d\'entrée ou le <b>tronçon entre les deux</b> : un clic ouvre WME avec les segments à fermer déjà sélectionnés.</p><p><kbd>↑</kbd> <kbd>↓</kbd> pour passer d\'un échangeur à l\'autre, <kbd>←</kbd> <kbd>→</kbd> pour changer de sens, <kbd>1</kbd> à <kbd>5</kbd> pour les gestes, <kbd>Ctrl K</kbd> pour chercher.</p><p>Les rocades et périphériques ont deux sens : <b>Intérieur</b> (horaire) et <b>Extérieur</b> (antihoraire).</p></div>';
+    $('detail').innerHTML = '<div class="aide"><h3 style="margin:0 0 10px">Comment ça marche</h3><p>Chaque échangeur est dessiné avec ses deux chaussées. <b>Survolez</b> une bretelle de sortie, une bretelle d\'entrée ou le <b>tronçon entre les deux</b> : un clic ouvre WME avec les segments à fermer déjà sélectionnés.</p><p><kbd>↑</kbd> <kbd>↓</kbd> pour passer d\'un échangeur à l\'autre, <kbd>←</kbd> chaussée de gauche, <kbd>→</kbd> chaussée de droite, <kbd>1</kbd> à <kbd>5</kbd> pour les gestes, <kbd>Ctrl K</kbd> pour chercher.</p><p>Les rocades et périphériques ont deux sens : <b>Intérieur</b> (horaire) et <b>Extérieur</b> (antihoraire).</p></div>';
     return;
   }
   $('detail').innerHTML = '<h3>' + pastille(r) + esc(nomRang(r)) + '</h3><div class="sous">' + ({ echangeur: 'Échangeur', aire: 'Aire', bifurcation: 'Bifurcation', entree: 'Entrée', autre: 'Sortie sans numéro' }[kindRang(r)] || '') + ' · km ' + Math.round(r.pos) + ((r.d || r.g || {}).nom_source ? ' · nom de l’échangeur d’après ' + ((r.d || r.g).nom_source === 'lieu Waze' ? 'le lieu Waze' : esc((r.d || r.g).nom_source)) : '') + ((r.d || r.g || {}).source === 'connaissance locale' ? ' · nom arbitré (connaissance locale)' : (r.d || r.g || {}).source === 'l’autre sens' ? ' · numéro repris de l’autre sens (absent de ce côté dans Waze)' : (r.d || r.g || {}).source ? (((r.d || r.g).num) ? ' · numéro et nom d’après ' + esc((r.d || r.g).source) + ' (absents de Waze)' : ' · nom d’après ' + esc((r.d || r.g).source) + ' (absent de Waze)') : '') + '</div>'
@@ -435,22 +447,37 @@ function detail() {
 }
 function choisir(i, defiler) {
   etat.sel = i;
+  { const r = etat.rangs[i]; if (window.FE_VUES && r) FE_VUES.point(FE_VUES.clePoint(r.d || r.g)); }
   document.querySelectorAll('.ligne[aria-selected=true]').forEach(e => e.setAttribute('aria-selected', 'false'));
   const e = $('rang' + i); if (e) { e.setAttribute('aria-selected', 'true'); if (defiler) e.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
   detail();
 }
-async function allerA(r, num) {
-  etat.route = r; retenir(); if (window.FE_VUES) FE_VUES.route(r); listeRoutes($('filtre').value);
+async function allerA(r, num, depuis, versVoulu, nomVoulu) {
+  etat.ouvrage = null; etat.route = r; retenir(); if (window.FE_VUES) FE_VUES.route(r); listeRoutes($('filtre').value);
   $('axe').innerHTML = '<div class="aide" style="padding:40px;text-align:center">Chargement…</div>';
-  try { etat.data = await charger(r); } catch (e) { $('axe').innerHTML = '<div class="aide" style="padding:40px">Impossible de charger ' + esc(r) + '.</div>'; return; }
-  const go = () => { etat.sel = -1; dessiner(); $('centre').scrollTop = 0; if (num != null) { const i = etat.rangs.findIndex(x => numRang(x) === num || nomRang(x) === num); if (i >= 0) choisir(i, true); } };
+  const gen = allerA.gen = (allerA.gen || 0) + 1;
+  try { const d_ = await charger(r); if (gen !== allerA.gen) return; etat.data = d_; } catch (e) { if (gen !== allerA.gen) return; $('axe').innerHTML = '<div class="aide" style="padding:40px">Impossible de charger ' + esc(r) + '.</div>'; return; }
+  // venu d'une bifurcation : le sens annoncé (« vers … ») et le point où l'on rejoint l'autoroute quittée (audit n° 4)
+  if (versVoulu) { const k = etat.data.chaussees.findIndex(c => c.vers === versVoulu); if (k >= 0) { etat.sensMobile = k; retenir(); } }
+  const go = () => {
+    etat.sel = -1; dessiner(); $('centre').scrollTop = 0;
+    let i = -1;
+    // même numéro ET même nom d'abord : un numéro peut exister deux fois (A51 : deux sorties 12)
+    if (num != null && nomVoulu) i = etat.rangs.findIndex(x => (numRang(x) === num || nomRang(x) === num) && [x.d, x.g].some(p => p && p.nom === nomVoulu));
+    if (i < 0 && num != null) i = etat.rangs.findIndex(x => numRang(x) === num || nomRang(x) === num);
+    if (i < 0 && !depuis && !num) { const pd = FE_VUES.pointDepart(); if (pd) i = etat.rangs.findIndex(x => FE_VUES.porte(x.d, pd) || FE_VUES.porte(x.g, pd)); }
+    if (i < 0 && depuis) i = etat.rangs.findIndex(x => [x.d, x.g].some(p => p && p.lien && (p.lien.page === depuis || p.lien.route === depuis)));
+    if (i >= 0) { const r = etat.rangs[i]; if (versVoulu) etat.cote = ordreSens(etat.data)[0] && ordreSens(etat.data)[0].vers === versVoulu ? 'd' : 'g'; choisir(i, true); }
+  };
   if (document.startViewTransition) document.startViewTransition(go); else go();
   mobileRendu();
+  if (depuis) { const j = (etat.mPts || []).findIndex(p => p.lien && (p.lien.page === depuis || p.lien.route === depuis)); if (j >= 0) { const b = document.querySelector('[data-m="' + j + '"]'); if (b) b.scrollIntoView({ block: 'center' }); } }
 }
 
 /* ---------- Ouvrage : un tunnel, un pont, un viaduc, fermé en entier ---------- */
 async function ouvrage(id) {
-  etat.ouvrage = id; etat.route = null; if (window.FE_VUES) FE_VUES.ouvrage(id); listeRoutes($('filtre').value);
+  etat.ouvrage = id; etat.route = null; etat.data = null; etat.rangs = []; etat.sel = -1;
+  if (window.FE_VUES) FE_VUES.ouvrage(id); listeRoutes($('filtre').value);
   if (!cache.__ouvrages) cache.__ouvrages = await fetch('d/ouvrages.json').then(x => x.json());
   const o = cache.__ouvrages.find(x => x.id === id); if (!o) return;
   const bouton = (l, txt, large) => l ? '<a class="act' + (large ? ' large' : '') + '" style="min-height:64px" href="' + esc(lien(l)) + '" target="_blank" rel="noopener">' + ICO.interdit + '<span>' + esc(txt) + '</span></a>' : '';
@@ -527,18 +554,19 @@ $('centre').addEventListener('scroll', majMini, { passive: true });
 $('mini').addEventListener('click', ev => { const r = $('mini').getBoundingClientRect(); const c = $('centre'); c.scrollTop = (ev.clientY - r.top) / r.height * c.scrollHeight - c.clientHeight / 2; });
 document.addEventListener('click', ev => {
   const o = ev.target.closest('[data-ouvrage]'); if (o) { ouvrage(o.dataset.ouvrage); $('feuille').classList.remove('vu'); mOuvrage(o.dataset.ouvrage); return; }
-  const b = ev.target.closest('[data-route]'); if (b) { etat.ouvrage = null; allerA(b.dataset.route); $('feuille').classList.remove('vu'); $('gestes').classList.remove('vu'); return; }
+  const b = ev.target.closest('[data-route]'); if (b) { etat.ouvrage = null; allerA(b.dataset.route, null, b.dataset.depuis || null, b.dataset.vers || null); $('feuille').classList.remove('vu'); $('gestes').classList.remove('vu'); return; }
   const c = ev.target.closest('[data-copie]'); if (c) navigator.clipboard.writeText(c.dataset.copie).then(() => toast('ID copiés'), () => toast('Copie impossible'));
 });
 $('filtre').oninput = e => filtrer(e.target.value);
 document.addEventListener('keydown', ev => {
   if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); palette(true); return; }
   if ($('palette').classList.contains('vu') || /input|textarea/i.test(document.activeElement.tagName)) return;
-  if (!etat.rangs.length) return;
+  if (!etat.rangs.length || etat.ouvrage) return;   // sur un ouvrage, ↑ ↓ et 1 à 5 n'agissent pas sur l'autoroute vue avant (audit n° 8)
   if (ev.key === 'ArrowDown' || ev.key === 'j') { ev.preventDefault(); choisir(Math.min(etat.rangs.length - 1, etat.sel + 1), true); }
   else if (ev.key === 'ArrowUp' || ev.key === 'k') { ev.preventDefault(); choisir(Math.max(0, etat.sel - 1), true); }
-  else if (ev.key === 'ArrowLeft') { etat.cote = 'g'; detail(); }
-  else if (ev.key === 'ArrowRight') { etat.cote = 'd'; detail(); }
+  // ← la chaussée de GAUCHE (sens d, ↓), → celle de DROITE (sens g, ↑) : elles étaient inversées (audit n° 3)
+  else if (ev.key === 'ArrowLeft') { etat.cote = 'd'; detail(); }
+  else if (ev.key === 'ArrowRight') { etat.cote = 'g'; detail(); }
   else if (/^[1-5]$/.test(ev.key) && etat.sel >= 0) {
     const p = etat.rangs[etat.sel][etat.cote]; if (!p) return;
     ouvrir(p.f[['entree', 'sortie', 'oblig', 'deux', 'tout'][+ev.key - 1]]);
@@ -552,20 +580,23 @@ function palette(ouvre) {
   if (ouvre) { $('pQ').value = ''; pRemplir(); setTimeout(() => $('pQ').focus(), 0); }
 }
 async function pRemplir() {
-  const q = sansAcc($('pQ').value.trim());
+  const q0 = sansAcc($('pQ').value.trim());
+  // « A7 21 », « a51 vif » : une autoroute puis un numéro ou un nom
+  const mr = q0.match(/^((?:a|n)\d+[a-z]?)\s+(.+)$/), rq = mr ? mr[1].toUpperCase() : null, q = mr ? mr[2] : q0;
   pRes = [];
   if (q) {
     const I = await index();
     for (const [r, num, nom, dest, k] of I) {
+      if (rq && r !== rq) continue;
       const t = sansAcc(num + ' ' + nom + ' ' + dest);
       if (t.includes(q) || (num && sansAcc(num) === q)) {
         if (r.startsWith('ouvrage:')) pRes.push({ ouvrage: r.slice(8), route: null, txt: nom, sous: dest || 'ouvrage' });
-        else pRes.push({ route: r, num: num || nom, txt: (num ? num + ' · ' : '') + nom, sous: (infos(r) ? (infos(r).anneau ? infos(r).titre : r) : r) + (dest ? ' · ' + dest : '') });
+        else pRes.push({ route: r, num: num || nom, nom, txt: (num ? num + ' · ' : '') + nom, sous: (infos(r) ? (infos(r).anneau ? infos(r).titre : r) : r) + (dest ? ' · ' + dest : '') });
       }
       if (pRes.length > 60) break;
     }
   }
-  const routes = DONNEES.liste.filter(r => !q || sansAcc(r.route + ' ' + r.titre + ' ' + r.sens.join(' ')).includes(q)).map(r => ({ route: r.route, txt: (r.anneau ? r.titre : r.route), sous: r.sens.join(' ↔ ') }));
+  const routes = rq ? [] : DONNEES.liste.filter(r => !q || sansAcc(r.route + ' ' + r.titre + ' ' + r.sens.join(' ')).includes(q)).map(r => ({ route: r.route, txt: (r.anneau ? r.titre : r.route), sous: r.sens.join(' ↔ ') }));
   // sans saisie : TOUTES les autoroutes (la liste était coupée à 40) ; avec saisie : routes puis échangeurs
   pRes = q ? routes.concat(pRes).slice(0, 80) : routes; pSel = 0; pDessin();
 }
@@ -574,10 +605,10 @@ $('pQ').oninput = pRemplir;
 $('pQ').onkeydown = ev => {
   if (ev.key === 'ArrowDown') { pSel = Math.min(pRes.length - 1, pSel + 1); pDessin(); ev.preventDefault(); }
   else if (ev.key === 'ArrowUp') { pSel = Math.max(0, pSel - 1); pDessin(); ev.preventDefault(); }
-  else if (ev.key === 'Enter' && pRes[pSel]) { palette(false); const x = pRes[pSel]; x.ouvrage ? ouvrage(x.ouvrage) : allerA(x.route, x.num); }
+  else if (ev.key === 'Enter' && pRes[pSel]) { palette(false); const x = pRes[pSel]; x.ouvrage ? ouvrage(x.ouvrage) : allerA(x.route, x.num, null, null, x.nom); }
   else if (ev.key === 'Escape') palette(false);
 };
-$('pListe').onclick = ev => { const li = ev.target.closest('li[data-i]'); if (li) { const x = pRes[+li.dataset.i]; palette(false); x.ouvrage ? ouvrage(x.ouvrage) : allerA(x.route, x.num); } };
+$('pListe').onclick = ev => { const li = ev.target.closest('li[data-i]'); if (li) { const x = pRes[+li.dataset.i]; palette(false); x.ouvrage ? ouvrage(x.ouvrage) : allerA(x.route, x.num, null, null, x.nom); } };
 $('palette').onclick = ev => { if (ev.target === $('palette')) palette(false); };
 $('ouvrirPalette').onclick = () => palette(true);
 
@@ -587,12 +618,14 @@ function mobileRendu() {
   $('mQ').style.display = '';
   $('mRoute').innerHTML = badge(etat.route) + '<span><b>' + esc(i.anneau ? i.titre : 'Autoroute ' + etat.route) + '</b><small>Changer d\'autoroute ▾</small></span>';
   if (etat.sensMobile >= d.chaussees.length) etat.sensMobile = 0;
+  $('mAires').checked = !!etat.aires;
   $('mSens').innerHTML = d.chaussees.map((c, k) => '<button type="button" data-s="' + k + '" aria-pressed="' + (k === etat.sensMobile) + '">→ ' + esc(c.vers) + '</button>').join('');
   mListe();
 }
 function mListe() {
-  const ch = etat.data.chaussees[etat.sensMobile], q = $('mQ').value.trim().toLowerCase();
-  etat.mPts = ch.points.filter(p => (etat.aires || (p.kind !== 'aire' && p.kind !== 'peage')) && (!q || (p.num || '') === q || (p.num || '').startsWith(q) || (p.nom || '').toLowerCase().includes(q) || (p.dest || []).join(' ').toLowerCase().includes(q)));
+  const ch = etat.data.chaussees[etat.sensMobile], q = sansAcc($('mQ').value.trim());
+  // une recherche remplie trouve aussi les aires et péages, même masqués (audit n° 13)
+  etat.mPts = ch.points.filter(p => (etat.aires || q || (p.kind !== 'aire' && p.kind !== 'peage')) && (!q || sansAcc(p.num) === q || sansAcc(p.num).startsWith(q) || sansAcc(p.nom).includes(q) || sansAcc((p.dest || []).join(' ')).includes(q)));
   $('mListe').innerHTML = etat.mPts.map((p, i) => {
     const n = GESTES.filter(g => p.f[g.k]).length + (p.f.tout ? 1 : 0);
     return '<button class="m-rang" type="button" data-m="' + i + '">' + pastille({ d: p }) + '<span class="m-txt"><b>' + esc(p.nom) + '</b><small>' + esc((p.dest || []).join(', ') || (p.lien && p.lien.vers ? 'vers ' + p.lien.vers : '') || 'km ' + Math.round(p.km)) + '</small></span><span class="m-n">' + n + '</span><span class="m-chev">›</span></button>';
@@ -604,21 +637,22 @@ function mGestes(i) {
   $('gBoite').innerHTML = '<div class="poignee"></div><div class="g-tete">' + pastille({ d: p }) + '<div><b>' + esc(p.nom) + '</b><small>' + esc((p.dest || []).join(', ')) + '</small></div></div>'
     + '<div class="g-sens"><span class="panneau">→ ' + esc(ch.vers) + '</span></div><div class="g-gestes">'
     + GESTES.map(g => { const l = p.f[g.k]; if (g.k === 'deux' && !l) return ''; return l ? '<a class="g-act' + (g.large ? ' large' : '') + '" href="' + esc(lien(l)) + '" target="_blank" rel="noopener">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></a>' : '<span class="g-act off' + (g.large ? ' large' : '') + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></span>'; }).join('')
-    + (p.f.tout ? '<a class="g-act large tout" href="' + esc(lien(p.f.tout)) + '" target="_blank" rel="noopener">' + ICO.interdit + ICO.interdit + '<span>Tout fermer : ' + esc(p.lib_tout || '') + '</span></a>' : '')
-    + '</div>' + lienBif(p) + '<button class="lien-ids" type="button" data-copie="' + tous.join(',') + '">Copier les ID des segments</button>';
+    + (p.f.tout ? '<a class="g-act large tout" href="' + esc(lien(p.f.tout)) + '" target="_blank" rel="noopener">' + ICO.interdit + ICO.interdit + '<span>' + esc(libTout(p, ch.vers)) + '</span></a>' : '')
+    + '</div>' + noteSansSortie(p) + lienBif(p) + '<button class="lien-ids" type="button" data-copie="' + tous.join(',') + '">Copier les ID des segments</button>';
   $('gestes').classList.add('vu');
 }
 $('mListe').onclick = ev => { const b = ev.target.closest('[data-m]'); if (b) mGestes(+b.dataset.m); };
 $('mSens').onclick = ev => { const b = ev.target.closest('[data-s]'); if (!b) return; etat.sensMobile = +b.dataset.s; retenir(); mobileRendu(); scrollTo({ top: 0 }); };
 $('mQ').oninput = mListe;
+$('mAires').onchange = e => { etat.aires = e.target.checked; retenir(); mListe(); if (etat.data) dessiner(); };
 $('mRoute').onclick = () => { $('feuille').classList.add('vu'); $('fQ').value = ''; fListe(); };
 $('feuille').onclick = ev => { if (ev.target === $('feuille')) $('feuille').classList.remove('vu'); };
 $('gestes').onclick = ev => { if (ev.target === $('gestes') || ev.target.closest('.g-act:not(.off)')) $('gestes').classList.remove('vu'); };
 function fListe() {
   const f = $('fQ').value.trim().toLowerCase();
-  const fo = (DONNEES.ouvrages || []).filter(o => !f || (o.titre + ' ' + (o.route || '')).toLowerCase().includes(f)).map(o => '<li><button type="button" data-ouvrage="' + esc(o.id) + '"><span class="cartouche" style="background:#334155">⛰</span><span><b>' + esc(o.titre) + '</b><small>' + esc(o.route || '') + '</small></span></button></li>').join('');
+  const fo = (DONNEES.ouvrages || []).filter(o => !f || sansAcc(o.titre + ' ' + (o.route || '')).includes(sansAcc(f))).map(o => '<li><button type="button" data-ouvrage="' + esc(o.id) + '"><span class="cartouche" style="background:#334155">⛰</span><span><b>' + esc(o.titre) + '</b><small>' + esc(o.route || '') + '</small></span></button></li>').join('');
   $('fListe').innerHTML = DONNEES.liste.filter(r => !f || sansAcc(r.route + ' ' + r.titre + ' ' + r.sens.join(' ')).includes(sansAcc(f)) || (ROUTES_TROUVEES && ROUTES_TROUVEES.has(r.route))).map(r => '<li><button type="button" data-route="' + esc(r.route) + '">' + badge(r.route) + '<span><b>' + esc(r.anneau ? r.titre : r.route) + '</b><small>' + esc(r.sens.join(' ↔ ')) + '</small></span></button></li>').join('');
-  $('fListe').innerHTML += fo;
+  $('fListe').innerHTML = fo + $('fListe').innerHTML;   // ouvrages en TÊTE, comme sur ordinateur (décision de l'auteur)
 }
 async function mOuvrage(id) {
   if (!cache.__ouvrages) cache.__ouvrages = await fetch('d/ouvrages.json').then(x => x.json());

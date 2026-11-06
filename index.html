@@ -10,7 +10,11 @@
 (() => {
   let v = null;
   try { v = localStorage.getItem('fe-vue'); } catch (e) {}
-  if (!['carte', 'lineaire', 'tableau'].includes(v)) v = matchMedia('(max-width: 860px)').matches ? 'lineaire' : 'carte';
+  // téléphone : TOUJOURS la vue linéaire (faite pour le pouce), même si une autre vue a été retenue un jour (lien partagé,
+  // écran en paysage) — décision de l'auteur, audit n° 19 ; ailleurs : la dernière vue, la carte la première fois
+  const tel = matchMedia('(max-width: 860px)').matches;
+  if (tel) v = 'lineaire';
+  else if (!['carte', 'lineaire', 'tableau'].includes(v)) v = 'carte';
   location.replace(v + '.html' + location.search);
 })();
 </script>
