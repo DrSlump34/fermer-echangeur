@@ -511,14 +511,7 @@ function dessiner() {
 const ptOuvrage = o => (o.tout && o.tout.c) || ((o.sens || []).find(Boolean) || {}).f.c;
 let GEO_OUV = null;
 async function geoOuvrages() { if (!GEO_OUV) GEO_OUV = await fetch('geo/_ouvrages.json').then(x => x.json()).catch(() => ({})); return GEO_OUV; }
-// ligne décalée de d pixels vers la droite du sens de parcours (repère écran : y vers le bas)
-function decaler(Q, d) {
-  return Q.map((q, i) => {
-    const p0 = Q[Math.max(0, i - 1)], p1 = Q[Math.min(Q.length - 1, i + 1)];
-    let tx = p1[0] - p0[0], ty = p1[1] - p0[1]; const l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l;
-    return [q[0] - ty * d, q[1] + tx * d];
-  });
-}
+// (decaler : la même fonction sert aux ouvrages, plus haut ; la copie identique qui la masquait est retirée, audit n° 34)
 // point et direction à la fraction f de la longueur d'une ligne
 function auFil(Q, f) {
   const L = []; let t = 0; for (let i = 1; i < Q.length; i++) { t += Math.hypot(Q[i][0] - Q[i - 1][0], Q[i][1] - Q[i - 1][1]); L.push(t); }
