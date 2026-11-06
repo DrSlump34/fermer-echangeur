@@ -297,8 +297,11 @@ async function charger(r) {
 
 /* ---------- Les deux sens réunis sur un seul axe : un rang = un échangeur ---------- */
 // a : la chaussée qui va vers le sud (nord en haut de l'écran) ; b : celle qui remonte
+const fmtKm = x => x.toFixed(1).replace('.', ',');   // km à la française (audit n° 34)
 function ordreSens(d) {
   const [x, y] = d.chaussees;
+  // sens de lecture calculé une fois par assembler.py, commun aux trois vues (audit n° 22) ; l'ancienne règle reste en secours
+  if (y && (d.premier === 0 || d.premier === 1)) return d.premier === 0 ? [x, y] : [y, x];
   if (!y || d.route.startsWith('anneau-')) return [x, y];
   // tendance générale : la chaussée qui perd le plus de latitude va vers le bas (même un axe presque
   // est-ouest a une pente qui tranche)
@@ -454,7 +457,7 @@ function detail() {
     $('detail').innerHTML = '<div class="aide"><h3 style="margin:0 0 10px">Comment ça marche</h3><p>Chaque échangeur est dessiné avec ses deux chaussées. <b>Survolez</b> une bretelle de sortie, une bretelle d\'entrée ou le <b>tronçon entre les deux</b> : un clic ouvre WME avec les segments à fermer déjà sélectionnés.</p><p><kbd>↑</kbd> <kbd>↓</kbd> pour passer d\'un échangeur à l\'autre, <kbd>←</kbd> chaussée de gauche, <kbd>→</kbd> chaussée de droite, <kbd>1</kbd> à <kbd>5</kbd> pour les gestes, <kbd>Ctrl K</kbd> pour chercher.</p><p>Les rocades et périphériques ont deux sens : <b>Intérieur</b> (horaire) et <b>Extérieur</b> (antihoraire).</p></div>';
     return;
   }
-  $('detail').innerHTML = '<h3>' + pastille(r) + esc(nomRang(r)) + '</h3><div class="sous">' + ({ echangeur: 'Échangeur', aire: 'Aire', bifurcation: 'Bifurcation', entree: 'Entrée', autre: 'Sortie sans numéro' }[kindRang(r)] || '') + ' · km ' + Math.round(r.pos) + ((r.d || r.g || {}).nom_source ? ' · nom de l’échangeur d’après ' + ((r.d || r.g).nom_source === 'lieu Waze' ? 'le lieu Waze' : esc((r.d || r.g).nom_source)) : '') + ((r.d || r.g || {}).source === 'connaissance locale' ? ' · nom arbitré (connaissance locale)' : (r.d || r.g || {}).source === 'l’autre sens' ? ' · numéro repris de l’autre sens (absent de ce côté dans Waze)' : (r.d || r.g || {}).source ? (((r.d || r.g).num) ? ' · numéro et nom d’après ' + esc((r.d || r.g).source) + ' (absents de Waze)' : ' · nom d’après ' + esc((r.d || r.g).source) + ' (absent de Waze)') : '') + '</div>'
+  $('detail').innerHTML = '<h3>' + pastille(r) + esc(nomRang(r)) + '</h3><div class="sous">' + ({ echangeur: 'Échangeur', aire: 'Aire', bifurcation: 'Bifurcation', entree: 'Entrée', autre: 'Sortie sans numéro' }[kindRang(r)] || '') + ' · à ' + fmtKm((r.d || r.g).km) + ' km du début, vers ' + esc((ordreSens(etat.data)[r.d ? 0 : 1] || {}).vers || '') + ((r.d || r.g || {}).nom_source ? ' · nom de l’échangeur d’après ' + ((r.d || r.g).nom_source === 'lieu Waze' ? 'le lieu Waze' : esc((r.d || r.g).nom_source)) : '') + ((r.d || r.g || {}).source === 'connaissance locale' ? ' · nom arbitré (connaissance locale)' : (r.d || r.g || {}).source === 'l’autre sens' ? ' · numéro repris de l’autre sens (absent de ce côté dans Waze)' : (r.d || r.g || {}).source ? (((r.d || r.g).num) ? ' · numéro et nom d’après ' + esc((r.d || r.g).source) + ' (absents de Waze)' : ' · nom d’après ' + esc((r.d || r.g).source) + ' (absent de Waze)') : '') + '</div>'
     + blocSens(r.d, 'd', etat.sel) + blocSens(r.g, 'g', etat.sel);
 }
 function choisir(i, defiler) {

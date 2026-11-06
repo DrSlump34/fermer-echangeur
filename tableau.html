@@ -166,6 +166,8 @@ const cle = p => p.kind === 'echangeur' && p.num ? 'n' + p.num : p.kind === 'ech
 const coord = p => { for (const k of ['sortie', 'entree', 'oblig', 'tout']) if (p.f[k]) return p.f[k].c; return null; };
 function ordreSens(cs) {
   if (cs.length < 2) return [0, 1];
+  // sens de lecture calculé une fois par assembler.py, commun aux trois vues (audit n° 22) ; l'ancienne règle reste en secours
+  if (etat.D && (etat.D.premier === 0 || etat.D.premier === 1)) return etat.D.premier === 0 ? [0, 1] : [1, 0];
   const P = cs[0].points.map(coord).filter(Boolean); if (P.length < 2) return [0, 1];
   const d = P[0], f = P[P.length - 1];
   const descend = Math.abs(f[0] - d[0]) > 2 * Math.abs(f[1] - d[1]) ? f[0] > d[0] : f[1] < d[1];
@@ -252,7 +254,7 @@ function detail() {
   if (!r) { $('detail').classList.remove('vu'); $('detail').innerHTML = ''; return; }
   const q = r.a || r.b, [cls, txt] = pastille(q);
   $('detail').innerHTML = '<button type="button" id="fermer" aria-label="Fermer">×</button><h3><span class="num ' + cls + '">' + esc(txt) + '</span>' + esc(q.nom) + '</h3>'
-    + '<div class="sous">' + (KIND[q.kind] || '') + ' · km ' + fmtKm(q.km) + (q.nom_source ? ' · nom de l’échangeur d’après ' + (q.nom_source === 'lieu Waze' ? 'le lieu Waze' : esc(q.nom_source)) : '') + (q.source === 'connaissance locale' ? ' · nom arbitré (connaissance locale)' : '') + '</div>'
+    + '<div class="sous">' + (KIND[q.kind] || '') + ' · à ' + fmtKm(q.km) + ' km du début, vers ' + esc(etat.D.chaussees[r.a ? etat.ia : etat.ib].vers) + (q.nom_source ? ' · nom de l’échangeur d’après ' + (q.nom_source === 'lieu Waze' ? 'le lieu Waze' : esc(q.nom_source)) : '') + (q.source === 'connaissance locale' ? ' · nom arbitré (connaissance locale)' : '') + '</div>'
     + bloc(r.a, etat.ia) + (etat.D.chaussees[etat.ib] ? bloc(r.b, etat.ib) : '');
   $('detail').classList.add('vu');
 }

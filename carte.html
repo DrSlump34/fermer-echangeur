@@ -239,6 +239,9 @@ function reference(G) {
       if (autre != null && dist(bouts(ch[autre])[0], debut) < dist(bouts(ch[autre])[1], debut)) k = autre;
       else sens = -1;
     }
+    // sens de lecture publié par assembler.py (ordre_lecture.py, même règle) : il fait foi, pour que les trois vues lisent pareil (audit n° 22)
+    const kD = etat.D && etat.D.premier;
+    if ((kD === 0 || kD === 1) && kD !== k && ch[kD] && ch[kD].length) { const [s0, s1] = bouts(ch[kD]); k = kD; sens = dist(s0, debut) <= dist(s1, debut) ? 1 : -1; }
   }
   let parts = ch[k];
   if (sens < 0) parts = parts.map(p => p.slice().reverse()).reverse();
@@ -694,7 +697,7 @@ function detail() {
   if (!r) { $('detail').innerHTML = '<p class="aide">Faites défiler : la carte avance le long de l\'autoroute.</p>'; return; }
   const q = pRang(r), [cls, txt] = pastille(q), kb = etat.D.chaussees.findIndex((c, i) => i !== etat.ref.k);
   $('detail').innerHTML = '<h3><span class="num ' + cls + '">' + esc(txt) + '</span>' + esc(q.nom) + '</h3>'
-    + '<div class="sous">' + (KIND[q.kind] || '') + ' · km ' + fmtKm(r.s / 1000) + (q.nom_source ? ' · nom de l’échangeur d’après ' + (q.nom_source === 'lieu Waze' ? 'le lieu Waze' : esc(q.nom_source)) : '') + (q.source === 'connaissance locale' ? ' · nom arbitré (connaissance locale)' : '') + '</div>'
+    + '<div class="sous">' + (KIND[q.kind] || '') + ' · à ' + fmtKm(q.km) + ' km du début, vers ' + esc(etat.D.chaussees[r.a ? etat.ref.k : etat.D.chaussees.findIndex((c, i) => i !== etat.ref.k)].vers) + (q.nom_source ? ' · nom de l’échangeur d’après ' + (q.nom_source === 'lieu Waze' ? 'le lieu Waze' : esc(q.nom_source)) : '') + (q.source === 'connaissance locale' ? ' · nom arbitré (connaissance locale)' : '') + '</div>'
     + (routeLiee(r.a) || routeLiee(r.b) ? (() => { const rl = routeLiee(r.a) || routeLiee(r.b); return '<p style="margin:0 0 12px"><a class="act autre-route" href="carte.html?r=' + encodeURIComponent(rl) + '" data-ouvrir="' + esc(rl) + '"><span class="num bif">' + esc(rl.replace(/^anneau-/, '⟳ ')) + '</span><span>Ouvrir l’' + esc(rl.replace(/^anneau-/, '')) + ' à la jonction</span></a></p>'; })() : '')
     + bloc(r.a, etat.ref.k) + (kb >= 0 ? bloc(r.b, kb) : '')
     + '<p class="aide">Survolez une bretelle sur la carte : un clic ouvre WME avec les segments sélectionnés. <kbd>↓</kbd> <kbd>↑</kbd> échangeur suivant ou précédent, <kbd>+</kbd> <kbd>−</kbd> ou <kbd>Ctrl</kbd> + molette pour le zoom.</p>';
