@@ -78,6 +78,10 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 .fleche { fill: var(--chaussee-fort); opacity: .55; }
 .geste { fill: none; stroke: var(--chaussee-fort); stroke-width: 7; stroke-linecap: round; cursor: pointer; transition: stroke var(--t), stroke-width var(--t), filter var(--t); }
 .geste.tronc { stroke: transparent; stroke-width: 20; }
+/* bout de chaussée (A51 à Tallard) : un morceau de la voie elle-même, à son extrémité, et une barre d'arrêt */
+.geste.bout { stroke-width: 10; stroke-linecap: butt; }
+.geste.bout:not(.absent):hover, .geste.bout.vu { stroke-width: 12; }
+.bout-barre { stroke: var(--doux); stroke-width: 3; stroke-linecap: round; pointer-events: none; }
 .geste.absent { stroke: var(--bord); stroke-width: 4; stroke-dasharray: 2 6; cursor: default; }
 .geste:not(.absent):hover, .geste.vu { stroke: var(--rouge); stroke-width: 9; filter: drop-shadow(0 0 6px color-mix(in srgb, var(--rouge) 60%, transparent)); }
 .geste.tronc:not(.absent):hover, .geste.tronc.vu { stroke: color-mix(in srgb, var(--ambre) 80%, transparent); stroke-width: 20; }
@@ -409,6 +413,13 @@ function dessiner() {
     }
     return '';
   };
+  // bout de chaussée : pas de bretelle, un morceau de la voie de ce sens, avant l'extrémité (sortie : on y arrive) ou
+  // après (entrée : on en part) ; la chaussée a roule vers +u (v = +O), la b vers −u (v = −O)
+  const bout = (r, cote, i) => {
+    const p = r[cote], kk = p.bout, sg = cote === 'a' ? 1 : -1, v = sg * O, u1 = kk === 'sortie' ? -sg * H : sg * H;
+    return '<path class="geste bout" d="M' + u1 + ' ' + v + ' L0 ' + v + '" data-i="' + i + '" data-c="' + cote + '" data-k="' + kk + '"/>'
+      + '<line class="bout-barre" x1="0" y1="' + (v - 9) + '" x2="0" y2="' + (v + 9) + '"/>';
+  };
   const geste = (r, cote, kk, d, i) => { const p = r[cote], l = p && p.f[kk]; if (!p) return ''; return '<path class="geste' + (kk === 'oblig' ? ' tronc' : '') + (l ? '' : ' absent') + '" d="' + d + '" data-i="' + i + '" data-c="' + cote + '" data-k="' + kk + '"/>'; };
   // les pastilles d'abord (elles ont priorité), puis les noms
   const vus = etat.rangs.map((r, i) => ({ r, i, P: aS(ref, r.s) }));
@@ -472,12 +483,12 @@ function dessiner() {
     if (plein) {
       // repère local : u le long de la référence, v vers sa droite ; la chaussée a est à v = +O, la b à v = −O
       g += '<g transform="matrix(' + [P.tx, P.ty, -P.ty, P.tx, C[0], C[1]].map(x => x.toFixed(4)).join(',') + ')">'
-        + geste(r, 'a', 'oblig', 'M' + (-H) + ' ' + O + ' L' + H + ' ' + O, i)
+        + (r.a && r.a.bout ? bout(r, 'a', i) : geste(r, 'a', 'oblig', 'M' + (-H) + ' ' + O + ' L' + H + ' ' + O, i)
         + geste(r, 'a', 'sortie', 'M' + (-H) + ' ' + O + ' C ' + (-H + 14) + ' ' + (O + 8) + ', ' + (-H + 16) + ' ' + (O + 26) + ', ' + (-H + 22) + ' ' + (O + 48), i)
-        + geste(r, 'a', 'entree', 'M' + (H - 22) + ' ' + (O + 48) + ' C ' + (H - 16) + ' ' + (O + 26) + ', ' + (H - 14) + ' ' + (O + 8) + ', ' + H + ' ' + O, i)
-        + geste(r, 'b', 'oblig', 'M' + H + ' ' + (-O) + ' L' + (-H) + ' ' + (-O), i)
+        + geste(r, 'a', 'entree', 'M' + (H - 22) + ' ' + (O + 48) + ' C ' + (H - 16) + ' ' + (O + 26) + ', ' + (H - 14) + ' ' + (O + 8) + ', ' + H + ' ' + O, i))
+        + (r.b && r.b.bout ? bout(r, 'b', i) : geste(r, 'b', 'oblig', 'M' + H + ' ' + (-O) + ' L' + (-H) + ' ' + (-O), i)
         + geste(r, 'b', 'sortie', 'M' + H + ' ' + (-O) + ' C ' + (H - 14) + ' ' + (-O - 8) + ', ' + (H - 16) + ' ' + (-O - 26) + ', ' + (H - 22) + ' ' + (-O - 48), i)
-        + geste(r, 'b', 'entree', 'M' + (-H + 22) + ' ' + (-O - 48) + ' C ' + (-H + 16) + ' ' + (-O - 26) + ', ' + (-H + 14) + ' ' + (-O - 8) + ', ' + (-H) + ' ' + (-O), i)
+        + geste(r, 'b', 'entree', 'M' + (-H + 22) + ' ' + (-O - 48) + ' C ' + (-H + 16) + ' ' + (-O - 26) + ', ' + (-H + 14) + ' ' + (-O - 8) + ', ' + (-H) + ' ' + (-O), i))
         + '</g>';
     }
     g += marques[i] || '';
