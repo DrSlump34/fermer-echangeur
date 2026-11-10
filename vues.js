@@ -53,6 +53,20 @@
       liens();
     },
     // le point demandé par l'adresse à l'ouverture (une seule fois)
+    // pictogramme de sortie du panonceau officiel M10b (tracé repris du fichier Wikimedia France_road_sign_M10b.svg) :
+    // ligne de base y = 326, hauteur de capitale 53 (273 → 326), x de 215,7 à 284,6
+    PICTO_SORTIE: 'M215.73 326.02l8.82-52.99h6.24v52.99zM234.49 326.02v-52.99h5l4.27 23.49c.35.6.73.97 1.24 0 2.56-6.8 7.73-10.37 13.86-13.45.85-.2.55-.91.19-1.16l-7.75-6.52c-.31-.51-1.68-1.94.63-2.36h28.68c2.78 0 2.24 2.14 1.66 3.56l-12.96 22.59c-.62 1.69-1.76 2.25-2.44.14l-2.78-9.02c-.75-1.15-1.42-.82-2.1-.67-5.59 1.91-10.46 11.78-12.84 23.6-.62 4.87-.56 8.6-.79 12.8z',
+    // cartouche d'échangeur numéroté (M10b) en SVG autonome, pour une ligne de la vue linéaire ou du tableau :
+    // panneau blanc liseré noir, cadre arrondi noir, pictogramme de sortie, numéro (noir sur blanc dans les deux thèmes)
+    m10b(num) {
+      const n = String(num), e = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      const w = 37 + n.length * 8.8, h = 26, m = 3.2, ph = h - 2 * m, cap = 9.6, s = cap / 53, pw = 68.9 * s, px = m + ph / 2 - 1;
+      return '<svg class="m10b" role="img" aria-label="Sortie ' + e(n) + '" width="' + w.toFixed(1) + '" height="' + h + '" viewBox="0 0 ' + w.toFixed(1) + ' ' + h + '">'
+        + '<rect x=".5" y=".5" width="' + (w - 1).toFixed(1) + '" height="' + (h - 1) + '" rx="5" fill="#fff" stroke="#111"/>'
+        + '<rect x="' + m + '" y="' + m + '" width="' + (w - 2 * m).toFixed(1) + '" height="' + ph.toFixed(1) + '" rx="' + (ph / 2).toFixed(1) + '" fill="none" stroke="#111" stroke-width="2.2"/>'
+        + '<path fill="#111" transform="translate(' + px.toFixed(1) + ' ' + (h / 2 + cap / 2).toFixed(1) + ') scale(' + s.toFixed(4) + ') translate(-215.73 -326.02)" d="' + FE_VUES.PICTO_SORTIE + '"/>'
+        + '<text x="' + ((px + pw + 2 + w - m - ph / 2 + 2) / 2).toFixed(1) + '" y="' + (h / 2 + 0.5) + '" text-anchor="middle" dominant-baseline="central" fill="#111" style="font: 800 13.5px ui-sans-serif, system-ui">' + e(n) + '</text></svg>';
+    },
     pointDepart() { const p = pointDepart; pointDepart = null; return p; },
     // clé d'un point : l'id du premier segment de sa première action ; et « ce point porte-t-il ce segment ? »
     clePoint(p) { if (!p) return null; for (const k of ['sortie', 'entree', 'oblig', 'tout', 'deux']) if (p.f[k] && p.f[k].ids.length) return p.f[k].ids[0]; return null; },

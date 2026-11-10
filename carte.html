@@ -100,6 +100,14 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 .cs.aire rect { fill: #047857; stroke: #fff; } .cs.aire text { fill: #fff; }
 .cs.autre rect { fill: var(--surface-2); stroke: var(--bord); } .cs.autre text { fill: var(--doux); }
 .actif .cs rect { stroke: var(--accent); stroke-width: 3; }
+/* cartouche d'échangeur numéroté, d'après le modèle officiel M10b : panneau blanc liseré noir, cadre arrondi noir,
+   pictogramme de sortie puis numéro (noir sur blanc dans les deux thèmes, comme sur le terrain) */
+.cs.ech .ext { fill: #fff; stroke: #111; stroke-width: 1; }
+.cs.ech .pil { fill: none; stroke: #111; stroke-width: 2.2; }
+.cs.ech .pic { fill: #111; stroke: none; }
+.cs.ech text { font-size: 13.5px; }
+.actif .cs.ech .ext { stroke: var(--accent); stroke-width: 3; }
+.actif .cs.ech .pil { stroke: #111; stroke-width: 2.2; }
 .pas rect { fill: #fff; stroke: #111; stroke-width: 2; }
 .pas text { font: 800 12px ui-sans-serif, system-ui; fill: #111; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
 .pas.bif rect { fill: var(--cartouche); stroke: #fff; } .pas.bif text { fill: #fff; font-size: 11px; }
@@ -176,7 +184,7 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 <div id="piste"></div>
 <div class="bulle" id="bulle"></div>
 
-<script src="vues.js"></script>
+<script src="vues.js?v=2026-11-10"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -344,6 +352,17 @@ function construireRangs() {
 /* ================= Dessin ================= */
 const O = 13, H = 30;   // demi-écart entre les deux chaussées ; demi-longueur d'un échangeur (px, comme la vue verticale)
 const pl = (P, cls, extra) => '<polyline class="' + cls + '"' + (extra || '') + ' points="' + P.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ') + '"/>';
+// pictogramme de sortie du panonceau M10b : une seule copie, dans vues.js
+const PICTO_SORTIE = FE_VUES.PICTO_SORTIE;
+// cartouche M10b centré en (x, y) : panneau w × hh, cadre arrondi intérieur, pictogramme, numéro
+function cartoucheM10b(x, y, w, hh, txt) {
+  const x0 = x - w / 2, y0 = y - hh / 2, m = 3.2, ph = hh - 2 * m, cap = 9.6, s = cap / 53, pw = 68.9 * s;
+  const px = x0 + m + ph / 2 - 1, base = y + cap / 2;
+  return '<rect class="ext" x="' + x0.toFixed(1) + '" y="' + y0.toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + hh + '" rx="5"/>'
+    + '<rect class="pil" x="' + (x0 + m).toFixed(1) + '" y="' + (y0 + m).toFixed(1) + '" width="' + (w - 2 * m).toFixed(1) + '" height="' + ph.toFixed(1) + '" rx="' + (ph / 2).toFixed(1) + '"/>'
+    + '<path class="pic" transform="translate(' + px.toFixed(1) + ' ' + base.toFixed(1) + ') scale(' + s.toFixed(4) + ') translate(-215.73 -326.02)" d="' + PICTO_SORTIE + '"/>'
+    + '<text x="' + ((px + pw + 2 + x0 + w - m - ph / 2 + 2) / 2).toFixed(1) + '" y="' + (y + 0.5).toFixed(1) + '" text-anchor="middle">' + esc(txt) + '</text>';
+}
 function pastille(q) {
   const k = q.kind;
   if (k === 'echangeur' && q.num) return ['', q.num];
@@ -363,22 +382,48 @@ function dessiner() {
   const { ref, D } = etat, k = etat.K, X = q => [q[0] * k, q[1] * k];
   const [x0, y0, x1, y1] = etat.boite, mg = 30000;
   const dedans = ([x, y]) => x > x0 - mg && x < x1 + mg && y > y0 - mg && y < y1 + mg;
-  let h = '';
-  // fond : autoroutes voisines et villes
-  for (const [r, g] of etat.voisins) {
-    for (const p of g.chaussees[0]) h += pl(simplifierPx(p.map(m).map(X), 1.2), 'voisin');
-    const vis = g.chaussees[0].flat().map(m).filter(dedans);
-    if (vis.length) {
-      const q = X(vis[Math.floor(vis.length / 2)]), nom = r.replace(/^anneau-/, '⟳ ').replace(/-/g, ' '), w = 14 + nom.length * 7;
-      h += '<g class="voisin-c" data-route="' + esc(r) + '" transform="translate(' + q[0].toFixed(1) + ',' + q[1].toFixed(1) + ')"><title>Ouvrir ' + esc(nom) + '</title><rect x="' + (-w / 2) + '" y="-10" width="' + w + '" height="20" rx="5"/><text>' + esc(nom) + '</text></g>';
-    }
-  }
-  for (const [nom, lon, lat, pop] of VILLES) {
-    const q = m([lon, lat]); if (!dedans(q)) continue;
-    if (pop < 15000 && k < 0.05) continue;
-    const Q = X(q);
-    h += '<g class="ville' + (pop > 60000 ? ' grande' : '') + '" transform="translate(' + Q[0].toFixed(1) + ',' + Q[1].toFixed(1) + ')"><circle r="' + (pop > 60000 ? 4.5 : 3) + '"/><text x="8" y="4">' + esc(nom) + '</text></g>';
-  }
+  const loin = $('scene').clientHeight / k > 40000;
+  /* ---------- place occupée : rien ne se superpose (demande de l'auteur, 10/11) ----------
+     Deux registres, indexés par une grille de 96 px : les BOÎTES déjà posées (cartouches, noms, villes…) et les TRAITS
+     dessinés (les deux chaussées, les bretelles), qu'aucune étiquette ne doit recouvrir : elles restent libres au
+     survol et au clic. Chaque étiquette essaie ses places dans l'ordre ; si aucune n'est libre, elle n'est pas
+     dessinée (sauf l'échangeur actif et les cartouches de près, qui gardent une place, au besoin avec un trait de rappel).
+     Ordre de priorité : l'actif, les cartouches et marqueurs, les bouts et interruptions, les noms d'échangeurs,
+     les cartouches des autoroutes voisines, les villes (les plus peuplées d'abord). */
+  const CEL = 96, grB = new Map(), grT = new Map();
+  const cellules = (x0, y0, x1, y1, f) => { for (let i = Math.floor(x0 / CEL); i <= Math.floor(x1 / CEL); i++) for (let j = Math.floor(y0 / CEL); j <= Math.floor(y1 / CEL); j++) f(i + ',' + j); };
+  const ranger = (gr, x0, y0, x1, y1, o) => cellules(x0, y0, x1, y1, c => { let l = gr.get(c); if (!l) gr.set(c, l = []); l.push(o); });
+  const prendre = b => ranger(grB, b[0], b[1], b[0] + b[2], b[1] + b[3], b);
+  const trait = (a, b, hw) => ranger(grT, Math.min(a[0], b[0]) - hw, Math.min(a[1], b[1]) - hw, Math.max(a[0], b[0]) + hw, Math.max(a[1], b[1]) + hw, [a[0], a[1], b[0], b[1], hw]);
+  const distSegBoite = (s, b) => {
+    const [ax, ay, bx, by] = s, x0 = b[0], y0 = b[1], x1 = b[0] + b[2], y1 = b[1] + b[3];
+    const dedansB = (x, y) => x >= x0 && x <= x1 && y >= y0 && y <= y1;
+    if (dedansB(ax, ay) || dedansB(bx, by)) return 0;
+    const dPt = (px, py) => { const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1, t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)); return Math.hypot(ax + t * dx - px, ay + t * dy - py); };
+    const dBoite = (px, py) => Math.hypot(Math.max(x0 - px, 0, px - x1), Math.max(y0 - py, 0, py - y1));
+    // le segment traverse-t-il la boîte ? (il coupe alors une de ses diagonales ou un de ses bords)
+    const coupe = (cx, cy, dx, dy) => { const d = (bx - ax) * (dy - cy) - (by - ay) * (dx - cx); if (!d) return false; const t = ((cx - ax) * (dy - cy) - (cy - ay) * (dx - cx)) / d, u = ((cx - ax) * (by - ay) - (cy - ay) * (bx - ax)) / d; return t >= 0 && t <= 1 && u >= 0 && u <= 1; };
+    if (coupe(x0, y0, x1, y1) || coupe(x1, y0, x0, y1)) return 0;
+    return Math.min(dBoite(ax, ay), dBoite(bx, by), dPt(x0, y0), dPt(x1, y0), dPt(x0, y1), dPt(x1, y1));
+  };
+  const libre = (b, marge = 3) => {
+    let ok = true;
+    cellules(b[0] - marge, b[1] - marge, b[0] + b[2] + marge, b[1] + b[3] + marge, c => {
+      if (!ok) return;
+      for (const o of grB.get(c) || []) if (b[0] < o[0] + o[2] && b[0] + b[2] > o[0] && b[1] < o[1] + o[3] && b[1] + b[3] > o[1]) { ok = false; return; }
+      for (const s of grT.get(c) || []) if (distSegBoite(s, b) < s[4] + marge) { ok = false; return; }
+    });
+    return ok;
+  };
+  const surTrait = (b, marge = 2) => { let t = false; cellules(b[0] - marge, b[1] - marge, b[0] + b[2] + marge, b[1] + b[3] + marge, c => { if (!t) for (const s of grT.get(c) || []) if (distSegBoite(s, b) < s[4] + marge) { t = true; return; } }); return t; };
+  // largeur réelle d'un texte (mêmes polices que la feuille de style) ; + le contour de lisibilité
+  const MES = dessiner.mes || (dessiner.mes = document.createElement('canvas').getContext('2d'));
+  const largeur = (txt, police) => { MES.font = police + ' ui-sans-serif, system-ui'; return MES.measureText(txt).width; };
+  // boîte d'un texte d'ancrage (x, ligne de base y), corps t px, contour c px (hauteur de ligne entière, comme le navigateur)
+  const boiteTexte = (x, y, w, t, anc, c) => [(anc === 'start' ? x : anc === 'end' ? x - w : x - w / 2) - c, y - t * 0.95 - c, w + 2 * c, t * 1.25 + 2 * c];
+  let hFond = '', hVoisins = '', hVilles = '', hRoute = '', h = '';
+  // fond : autoroutes voisines (tracés ; leurs cartouches sont posés plus loin, après les échangeurs)
+  for (const [, g] of etat.voisins) for (const p of g.chaussees[0]) hFond += pl(simplifierPx(p.map(m).map(X), 1.2), 'voisin');
   // l'autoroute : deux chaussées parallèles (comme la vue verticale), qui suivent le tracé ; interruptions en pointillé
   const morceaux = []; let deb = 0;
   for (const c of ref.coupures) { morceaux.push([deb, c.s0]); deb = c.s1; }
@@ -386,14 +431,15 @@ function dessiner() {
   for (const [s0, s1] of morceaux) {
     const P = simplifierPx(ref.pts.filter((_, i) => ref.S[i] >= s0 - 1 && ref.S[i] <= s1 + 1).map(X), 0.8);
     if (P.length < 2) continue;
-    for (const o of [O, -O]) { const Q = decaler(P, o); h += pl(Q, 'voie') + pl(Q, 'voie-trait'); }
+    for (const o of [O, -O]) { const Q = decaler(P, o); hRoute += pl(Q, 'voie') + pl(Q, 'voie-trait'); for (let i = 1; i < Q.length; i++) trait(Q[i - 1], Q[i], 5); }
   }
+  const libsCoupure = [];
   for (const c of ref.coupures) {
     const a = aS(ref, c.s0), b = aS(ref, c.s1), A = [a.x * k, a.y * k], B = [b.x * k, b.y * k], km = (c.s1 - c.s0) / 1000;
-    h += pl([A, B], 'coupure');
+    hRoute += pl([A, B], 'coupure'); trait(A, B, 2);
     // le libellé au début ET à la fin de l'interruption : on le voit en y arrivant, dans les deux sens de lecture
     const L = Math.hypot(B[0] - A[0], B[1] - A[1]) || 1, ux = (B[0] - A[0]) / L, uy = (B[1] - A[1]) / L;
-    if (km >= 1) for (const [Q, d] of [[A, 1], [B, -1]]) h += '<text class="coupure-lib" x="' + (Q[0] + ux * d * Math.min(70, L / 3) + 14).toFixed(1) + '" y="' + (Q[1] + uy * d * Math.min(70, L / 3) + 4).toFixed(1) + '">Autoroute interrompue · ≈ ' + Math.round(km) + ' km sans tracé</text>';
+    if (km >= 1) for (const [Q, d] of [[A, 1], [B, -1]]) libsCoupure.push([Q[0] + ux * d * Math.min(70, L / 3) + 14, Q[1] + uy * d * Math.min(70, L / 3) + 4, 'Autoroute interrompue · ≈ ' + Math.round(km) + ' km sans tracé', d]);
   }
   // flèches de sens, tous les 2 km environ à l'écran
   const pas = Math.max(2000, 260 / k);
@@ -401,33 +447,26 @@ function dessiner() {
     if (ref.coupures.some(c => s > c.s0 && s < c.s1)) continue;
     const p = aS(ref, s), C = [p.x * k, p.y * k], nx = -p.ty, ny = p.tx;
     const fl = (o, d) => { const cx = C[0] + nx * o, cy = C[1] + ny * o, ux = p.tx * d, uy = p.ty * d; return '<path class="fleche" d="M' + (cx + ux * 5).toFixed(1) + ' ' + (cy + uy * 5).toFixed(1) + ' L' + (cx - ux * 3 + nx * 4).toFixed(1) + ' ' + (cy - uy * 3 + ny * 4).toFixed(1) + ' L' + (cx - ux * 3 - nx * 4).toFixed(1) + ' ' + (cy - uy * 3 - ny * 4).toFixed(1) + 'z"/>'; };
-    h += fl(O, 1) + fl(-O, -1);
-  }
-  // bouts : où mène chaque chaussée
-  const ca = D.chaussees[ref.k], cb = D.chaussees.find((c, i) => i !== ref.k);
-  if (!ref.boucle) {
-    const d0 = aS(ref, 0), d1 = aS(ref, ref.L);
-    h += '<g class="bout"><text x="' + (d0.x * k - d0.tx * 46).toFixed(1) + '" y="' + (d0.y * k - d0.ty * 46 + 4).toFixed(1) + '">' + esc(cb ? '↑ vers ' + cb.vers : 'Début') + '</text>'
-      + '<text x="' + (d1.x * k + d1.tx * 46).toFixed(1) + '" y="' + (d1.y * k + d1.ty * 46 + 4).toFixed(1) + '">↓ vers ' + esc(ca.vers) + '</text></g>';
+    hRoute += fl(O, 1) + fl(-O, -1);
   }
   // échangeurs : bretelles dessinées comme dans la vue verticale, tournées selon la route ; noms de chaque sens sur son côté
-  const places = [];
-  const chevauche = b => places.some(c => b[0] < c[0] + c[2] && b[0] + b[2] > c[0] && b[1] < c[1] + c[3] && b[1] + b[3] > c[1]);
   const etiquette = (p, C, nx, ny, ecart, i, cote, force) => {
     const nom = p.nom || '', dest = !loin && p.dest && p.dest.length && p.dest.join(' · ') !== nom ? p.dest.slice(0, 2).join(' · ') : '';
-    const w = Math.max(nom.length * 7.4, dest.length * 6.2, 30), hh = dest ? 32 : 18;
+    const wn = largeur(nom, '650 13.5px'), wd = dest ? largeur(dest, '500 11.5px') : 0, w = Math.max(wn, wd, 20);
     const anc = nx > 0.4 ? 'start' : nx < -0.4 ? 'end' : 'middle';
-    const essais = loin ? 4 : 9;
+    const essais = loin ? 4 : 10;
+    let repli = null;
     for (let n = 0; n < essais; n++) {
-      const e = ecart + n * 16, lx = C[0] + nx * e, ly = C[1] + ny * e + (Math.abs(ny) > 0.6 ? (ny > 0 ? 10 : -hh + 8) : 0) + (Math.abs(ny) <= 0.6 ? n * 14 * (n % 2 ? 1 : -1) : 0);
-      const b = [anc === 'start' ? lx : anc === 'end' ? lx - w : lx - w / 2, ly - 13, w, hh];
-      if (!force && n < essais - 1 && chevauche(b)) continue;
-      if (loin && !force && chevauche(b)) return '';
-      places.push(b);
-      return '<g class="etiq" data-i="' + i + '" data-c="' + cote + '"><text class="n" x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" text-anchor="' + anc + '">' + esc(nom) + '</text>'
-        + (dest ? '<text class="d" x="' + lx.toFixed(1) + '" y="' + (ly + 15).toFixed(1) + '" text-anchor="' + anc + '">' + esc(dest) + '</text>' : '') + '</g>';
+      const e = ecart + n * 16, lx = C[0] + nx * e, ly = C[1] + ny * e + (Math.abs(ny) > 0.6 ? (ny > 0 ? 10 : (dest ? -24 : -10)) : 0) + (Math.abs(ny) <= 0.6 ? n * 14 * (n % 2 ? 1 : -1) : 0);
+      const b1 = boiteTexte(lx, ly, w, 13.5, anc, 2), b = dest ? [b1[0], b1[1], b1[2], b1[3] + 15] : b1;
+      if (!libre(b)) { if (force && !repli && !surTrait(b)) repli = [lx, ly, b]; continue; }
+      repli = [lx, ly, b]; break;
     }
-    return '';
+    if (!repli && force) { const lx = C[0] + nx * ecart, ly = C[1] + ny * ecart; repli = [lx, ly, boiteTexte(lx, ly, w, 13.5, anc, 2)]; }
+    if (!repli) return '';
+    const [lx, ly, b] = repli; prendre(b);
+    return '<g class="etiq" data-i="' + i + '" data-c="' + cote + '"><text class="n" x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" text-anchor="' + anc + '">' + esc(nom) + '</text>'
+      + (dest ? '<text class="d" x="' + lx.toFixed(1) + '" y="' + (ly + 15).toFixed(1) + '" text-anchor="' + anc + '">' + esc(dest) + '</text>' : '') + '</g>';
   };
   // bout de chaussée : pas de bretelle, un morceau de la voie de ce sens, avant l'extrémité (sortie : on y arrive) ou
   // après (entrée : on en part) ; la chaussée a roule vers +u (v = +O), la b vers −u (v = −O)
@@ -437,7 +476,6 @@ function dessiner() {
       + '<line class="bout-barre" x1="0" y1="' + (v - 9) + '" x2="0" y2="' + (v + 9) + '"/>';
   };
   const geste = (r, cote, kk, d, i) => { const p = r[cote], l = p && p.f[kk]; if (!p) return ''; return '<path class="geste' + (kk === 'oblig' ? ' tronc' : '') + (l ? '' : ' absent') + '" d="' + d + '" data-i="' + i + '" data-c="' + cote + '" data-k="' + kk + '"/>'; };
-  // les pastilles d'abord (elles ont priorité), puis les noms
   const vus = etat.rangs.map((r, i) => ({ r, i, P: aS(ref, r.s) }));
   // place libre autour d'un rang : distance au rang voisin qui occupe le même côté (deux aires face à face, chacune
   // d'un seul côté, ne se gênent pas)
@@ -446,57 +484,125 @@ function dessiner() {
     for (const w of [vus[j - 1], vus[j + 1], vus[j - 2], vus[j + 2]]) if (w && ((v.r.a && w.r.a) || (v.r.b && w.r.b))) d = Math.min(d, Math.abs(w.r.s - v.r.s) * k);
     return d;
   });
+  const plein = vus.map((v, j) => serre[j] > 2 * H + 10);
+  // les bretelles dessinées sont des traits à ne pas recouvrir : courbes échantillonnées dans le repère local (u, v)
+  const bez = (p0, p1, p2, p3) => [0, .25, .5, .75, 1].map(t => { const s = 1 - t; return [0, 1].map(d => s * s * s * p0[d] + 3 * s * s * t * p1[d] + 3 * s * t * t * p2[d] + t * t * t * p3[d]); });
+  vus.forEach(({ r, P }, j) => {
+    if (!plein[j]) return;
+    const C = [P.x * k, P.y * k], L = ([u, v]) => [C[0] + u * P.tx - v * P.ty, C[1] + u * P.ty + v * P.tx];
+    for (const [cote, sg] of [['a', 1], ['b', -1]]) {
+      const p = r[cote]; if (!p) continue;
+      const courbes = p.bout ? [[[(p.bout === 'sortie' ? -sg : sg) * H, sg * O], [0, sg * O]]]
+        : [bez([-sg * H, sg * O], [sg * (-H + 14), sg * (O + 8)], [sg * (-H + 16), sg * (O + 26)], [sg * (-H + 22), sg * (O + 48)]),
+          bez([sg * (H - 22), sg * (O + 48)], [sg * (H - 16), sg * (O + 26)], [sg * (H - 14), sg * (O + 8)], [sg * H, sg * O])];
+      for (const c of courbes) for (let q = 1; q < c.length; q++) trait(L(c[q - 1]), L(c[q]), 4.5);
+    }
+  });
   // ordre de placement : l'actif d'abord, puis les échangeurs numérotés, les bifurcations, le reste, les aires et
-  // péages en dernier (les derniers placés sont ceux qu'on décale)
-  const loin = $('scene').clientHeight / k > 40000;
+  // péages en dernier
   const rangKind = q => q.kind === 'echangeur' && q.num ? 0 : q.kind === 'bifurcation' ? 1 : q.kind === 'aire' || q.kind === 'peage' ? 3 : 2;
   const ordre = vus.map((v, j) => j).sort((x, y) => (y === etat.actif) - (x === etat.actif) || rangKind(pRang(vus[x].r)) - rangKind(pRang(vus[y].r)));
-  // rien n'est posé sur les voies : elles restent libres au survol et au clic ; les marqueurs vont sur le côté
-  const montre = new Set(vus.map((v, j) => j));
-  // marqueur d'un sens, au bout de sa bretelle de sortie (à défaut d'entrée) : le vrai cartouche numéroté pour un
-  // échangeur, la route pour une bifurcation, P pour une aire ; rien sur les voies, qui restent libres au clic
+  // marqueur d'un sens, au bout de sa bretelle de sortie (à défaut d'entrée) : le cartouche M10b pour un échangeur
+  // numéroté, la route pour une bifurcation, P pour une aire ; JAMAIS sur une voie ni une bretelle
   const marques = {};
-  const marque = (p, cote, C, P, i, plein) => {
+  const marque = (p, cote, C, P, i, pl1, garder) => {
     const [cls, txt] = pastille(p);
-    // un numéro de sortie n'a de sens que là où l'on sort ; sinon un simple point, pour pouvoir cliquer
-    const point = (cls === 'autre' && p.kind !== 'peage') || (cls === '' && !p.f.sortie);
-    const sg = cote === 'a' ? 1 : -1;
-    // avec la place : au bout de la bretelle de sortie (à défaut d'entrée) ; serré : juste à côté de la chaussée
-    const u = plein ? sg * (p.f.sortie || !p.f.entree ? -(H - 22) : H - 22) : 0, v = sg * (plein ? O + 64 : O + 22);
-    const x0 = C[0] + u * P.tx - v * P.ty, y0 = C[1] + u * P.ty + v * P.tx;
-    const pic = point ? 0 : cls === '' ? 16 : 0, w = point ? 10 : pic + Math.max(22, String(txt).length * 8.2 + 12), hh = point ? 10 : 24;
-    // deux points au même endroit : le second est décalé le long de la route, puis vers l'extérieur ; jamais caché
-    let x = x0, y = y0;
-    for (const [du, dv] of [[0, 0], [1, 0], [-1, 0], [0, 1], [1, 1], [-1, 1], [2, 0], [-2, 0], [0, 2], [2, 1], [-2, 1], [0, 3]]) {
-      const dU = du * (w + 8) * sg, dV = dv * (hh + 8) * sg;
-      x = x0 + dU * P.tx - dV * P.ty; y = y0 + dU * P.ty + dV * P.tx;
-      if (!chevauche([x - w / 2 - 2, y - hh / 2 - 2, w + 4, hh + 4])) break;
+    // échangeur numéroté : UN cartouche par sens dès qu'il y a une sortie, une entrée ou les deux ; sans numéro, pas
+    // de cartouche : un simple point, pour pouvoir cliquer
+    const point = (cls === 'autre' && p.kind !== 'peage') || (cls === '' && !p.f.sortie && !p.f.entree);
+    const ech = !point && cls === '';
+    const w = point ? 10 : ech ? 37 + String(txt).length * 8.8 : Math.max(22, String(txt).length * 8.2 + 12), hh = point ? 10 : ech ? 26 : 24;
+    const sg = cote === 'a' ? 1 : -1, tx = P.tx, ty = P.ty, nx = -ty * sg, ny = tx * sg;
+    // demi-étendue de la boîte selon la normale (vers l'extérieur) et selon la route : la boîte n'est pas tournée
+    const eN = w / 2 * Math.abs(nx) + hh / 2 * Math.abs(ny), eT = w / 2 * Math.abs(tx) + hh / 2 * Math.abs(ty);
+    // point d'accroche : bout de la bretelle de sortie (à défaut d'entrée) ; serré : bord de la chaussée
+    const u = pl1 ? sg * (p.f.sortie || !p.f.entree ? -(H - 22) : H - 22) : 0, v0 = pl1 ? O + 48 + 4.5 : O + 5;
+    const A = [C[0] + u * tx + v0 * nx, C[1] + u * ty + v0 * ny];
+    const cand = [];
+    // de loin, un cartouche ne s'écarte que d'un cran (sinon on ne sait plus à quel échangeur il appartient) ;
+    // de près, il peut aller plus loin, relié à son bout de bretelle par un trait de rappel
+    for (const dv of loin ? [0, 1] : [0, 1, 2, 3]) for (const du of loin ? [0, 1, -1] : [0, 1, -1, 2, -2]) {
+      const d = 4 + eN + dv * (2 * eN + 6), e = du * (2 * eT + 6);
+      cand.push([A[0] + nx * d + tx * e * sg, A[1] + ny * d + ty * e * sg]);
     }
-    places.push([x - w / 2 - 2, y - hh / 2 - 2, w + 4, hh + 4]);
-    const trait = Math.hypot(x - x0, y - y0) > 2 ? '<line x1="' + x0.toFixed(1) + '" y1="' + y0.toFixed(1) + '" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="var(--doux)" stroke-width="1" stroke-dasharray="2 2"/>' : '';
-    if (point) return '<g class="cs autre" data-i="' + i + '" data-c="' + cote + '">' + trait + '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="5" fill="var(--doux)" stroke="var(--fond)" stroke-width="2"/></g>';
-    return '<g class="cs ' + cls + '" data-i="' + i + '" data-c="' + cote + '">' + trait + '<rect x="' + (x - w / 2).toFixed(1) + '" y="' + (y - hh / 2).toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + hh + '" rx="5"/>'
-      + (pic ? '<path d="M' + (x - w / 2 + 5).toFixed(1) + ' ' + (y + 6).toFixed(1) + ' l7 -10 m-5 0 h5 v5"/>' : '')
-      + '<text x="' + (x - w / 2 + pic + (w - pic) / 2).toFixed(1) + '" y="' + y.toFixed(1) + '" text-anchor="middle">' + esc(txt) + '</text></g>';
+    const bo = ([x, y]) => [x - w / 2 - 2, y - hh / 2 - 2, w + 4, hh + 4];
+    let c = cand.find(q => libre(bo(q), 1));
+    if (!c) { if (!garder) return null; c = cand.find(q => !surTrait(bo(q), 1)) || cand[0]; }
+    return { b: bo(c), html: () => {
+      const [x, y] = c, d0 = Math.hypot(x - (A[0] + nx * (4 + eN)), y - (A[1] + ny * (4 + eN)));
+      const rappel = d0 > 2 ? '<line x1="' + A[0].toFixed(1) + '" y1="' + A[1].toFixed(1) + '" x2="' + x.toFixed(1) + '" y2="' + y.toFixed(1) + '" stroke="var(--doux)" stroke-width="1" stroke-dasharray="2 2"/>' : '';
+      if (point) return '<g class="cs autre" data-i="' + i + '" data-c="' + cote + '">' + rappel + '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="5" fill="var(--doux)" stroke="var(--fond)" stroke-width="2"/></g>';
+      if (ech) return '<g class="cs ech" data-i="' + i + '" data-c="' + cote + '">' + rappel + cartoucheM10b(x, y, w, hh, txt) + '</g>';
+      return '<g class="cs ' + cls + '" data-i="' + i + '" data-c="' + cote + '">' + rappel + '<rect x="' + (x - w / 2).toFixed(1) + '" y="' + (y - hh / 2).toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + hh + '" rx="5"/>'
+        + '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" text-anchor="middle">' + esc(txt) + '</text></g>';
+    } };
   };
+  // bouts de l'autoroute et interruptions : toujours affichés, ils prennent leur place avant les cartouches et les noms
+  const ca = D.chaussees[ref.k], cb = D.chaussees.find((c, i) => i !== ref.k);
+  let hBouts = '';
+  if (!ref.boucle) {
+    const d0 = aS(ref, 0), d1 = aS(ref, ref.L);
+    for (const [d, sgn, txt] of [[d0, -1, cb ? '↑ vers ' + cb.vers : 'Début'], [d1, 1, '↓ vers ' + ca.vers]]) {
+      const x = d.x * k + d.tx * 46 * sgn, y = d.y * k + d.ty * 46 * sgn + 4;
+      prendre(boiteTexte(x, y, largeur(txt, '700 13px'), 13, 'middle', 2));
+      hBouts += '<text x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '">' + esc(txt) + '</text>';
+    }
+  }
+  // le libellé de fin d'une interruption n'est posé que s'il a la place (de loin, les deux bouts se confondent)
+  for (const [x, y, txt, d] of libsCoupure) { const bc = boiteTexte(x, y, largeur(txt, '600 12px'), 12, 'start', 2); if (d < 0 && !libre(bc)) continue; prendre(bc); hRoute += '<text class="coupure-lib" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '">' + esc(txt) + '</text>'; }
+  hRoute += hBouts ? '<g class="bout">' + hBouts + '</g>' : '';
+  // les deux côtés d'un échangeur vont ensemble : de loin, si l'un n'a pas de place, aucun des deux n'est posé
   for (const j of ordre) {
-    const v = vus[j]; if (!v) continue;
-    const C = [v.P.x * k, v.P.y * k], plein = serre[j] > 2 * H + 10;
-    marques[v.i] = (v.r.a ? marque(v.r.a, 'a', C, v.P, v.i, plein) : '') + (v.r.b ? marque(v.r.b, 'b', C, v.P, v.i, plein) : '');
+    const v = vus[j], C = [v.P.x * k, v.P.y * k], garder = !loin || j === etat.actif;
+    const ma = v.r.a ? marque(v.r.a, 'a', C, v.P, v.i, plein[j], garder) : null;
+    if (ma) prendre(ma.b);
+    const mb = v.r.b ? marque(v.r.b, 'b', C, v.P, v.i, plein[j], garder) : null;
+    if ((v.r.a && !ma) || (v.r.b && !mb)) { if (ma) { const l = grB; l.forEach(t => { const x = t.indexOf(ma.b); if (x >= 0) t.splice(x, 1); }); } continue; }
+    if (mb) prendre(mb.b);
+    marques[v.i] = (ma ? ma.html() : '') + (mb ? mb.html() : '');
   }
   const etiqs = {};
   for (const j of ordre) {
-    const v = vus[j]; if (!v || !montre.has(j)) continue;
-    const { r, i, P } = v, C = [P.x * k, P.y * k], nx = -P.ty, ny = P.tx, plein = serre[j] > 2 * H + 10;
-    const ec = plein ? O + 92 : O + 50;
+    const v = vus[j]; if (marques[v.i] === undefined) continue;
+    const { r, i, P } = v, C = [P.x * k, P.y * k], nx = -P.ty, ny = P.tx;
+    const ec = plein[j] ? O + 92 : O + 50;
     etiqs[i] = (r.a ? etiquette(r.a, C, nx, ny, ec, i, 'a', i === etat.actif) : '') + (r.b ? etiquette(r.b, C, -nx, -ny, ec, i, 'b', i === etat.actif) : '');
   }
+  // cartouches des autoroutes voisines : posés SUR leur tracé, à la première place libre (milieu de la partie visible,
+  // puis de part et d'autre) ; pas de place ⇒ pas de cartouche
+  for (const [r, g] of etat.voisins) {
+    const vis = g.chaussees[0].flat().map(m).filter(dedans);
+    if (!vis.length) continue;
+    const nom = r.replace(/^anneau-/, '⟳ ').replace(/-/g, ' '), w = Math.max(24, largeur(nom, '800 11px') + 14);
+    for (const f of [.5, .35, .65, .2, .8, .1, .9]) {
+      const q = X(vis[Math.floor((vis.length - 1) * f)]), b = [q[0] - w / 2 - 2, q[1] - 12, w + 4, 24];
+      if (!libre(b)) continue;
+      prendre(b);
+      hVoisins += '<g class="voisin-c" data-route="' + esc(r) + '" transform="translate(' + q[0].toFixed(1) + ',' + q[1].toFixed(1) + ')"><title>Ouvrir ' + esc(nom) + '</title><rect x="' + (-w / 2).toFixed(1) + '" y="-10" width="' + w.toFixed(1) + '" height="20" rx="5"/><text>' + esc(nom) + '</text></g>';
+      break;
+    }
+  }
+  // villes, les plus peuplées d'abord ; nom à droite du point, sinon à gauche ; pas de place ⇒ pas de ville
+  for (const [nom, lon, lat, pop] of [...VILLES].sort((a, b) => b[3] - a[3])) {
+    const q = m([lon, lat]); if (!dedans(q)) continue;
+    if (pop < 15000 && k < 0.05) continue;
+    const Q = X(q), gde = pop > 60000, t = gde ? 14 : 12, w = largeur(nom, '600 ' + t + 'px'), rr = gde ? 4.5 : 3;
+    const pt = [Q[0] - rr - 1, Q[1] - rr - 1, 2 * rr + 2, 2 * rr + 2];
+    let pose = null;
+    for (const [dx, anc] of [[8, 'start'], [-8, 'end']]) {
+      const b = boiteTexte(Q[0] + dx, Q[1] + 4, w, t, anc, 1.5);
+      if (libre(b, 1) && libre(pt, 1)) { pose = [dx, anc, b]; break; }
+    }
+    if (!pose) continue;
+    prendre(pose[2]); prendre(pt);
+    hVilles += '<g class="ville' + (gde ? ' grande' : '') + '" transform="translate(' + Q[0].toFixed(1) + ',' + Q[1].toFixed(1) + ')"><circle r="' + rr + '"/><text x="' + pose[0] + '" y="4"' + (pose[1] === 'end' ? ' text-anchor="end"' : '') + '>' + esc(nom) + '</text></g>';
+  }
+  h = hFond + hVoisins + hVilles + hRoute;
   vus.forEach(({ r, i, P }, j) => {
-    if (!montre.has(j)) return;
-    const C = [P.x * k, P.y * k], q = pRang(r), [cls, txt] = pastille(q), plein = serre[j] > 2 * H + 10;
+    const C = [P.x * k, P.y * k];
     let g = '<g class="rang' + (i === etat.actif ? ' actif' : '') + '" data-i="' + i + '">';
-    if (i === etat.actif) g += '<circle class="halo" cx="' + C[0].toFixed(1) + '" cy="' + C[1].toFixed(1) + '" r="' + (plein ? 62 : 30) + '"/>';
-    if (plein) {
+    if (i === etat.actif) g += '<circle class="halo" cx="' + C[0].toFixed(1) + '" cy="' + C[1].toFixed(1) + '" r="' + (plein[j] ? 62 : 30) + '"/>';
+    if (plein[j]) {
       // repère local : u le long de la référence, v vers sa droite ; la chaussée a est à v = +O, la b à v = −O
       g += '<g transform="matrix(' + [P.tx, P.ty, -P.ty, P.tx, C[0], C[1]].map(x => x.toFixed(4)).join(',') + ')">'
         + (r.a && r.a.bout ? bout(r, 'a', i) : geste(r, 'a', 'oblig', 'M' + (-H) + ' ' + O + ' L' + H + ' ' + O, i)
