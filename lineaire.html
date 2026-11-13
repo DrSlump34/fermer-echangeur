@@ -213,7 +213,7 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 .ajout { flex: none; width: 44px; min-height: 44px; border: 1px solid var(--bord); border-radius: 12px; background: var(--surface); color: var(--doux); font-size: 22px; font-weight: 800; line-height: 1; cursor: pointer; }
 .ajout:hover { border-color: var(--accent); color: var(--accent); }
 .ajout[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: #fff; }
-.panier { position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 25; display: none; width: min(400px, calc(100vw - 32px)); max-height: 70dvh; overflow: auto; padding: 12px; border: 1px solid var(--accent); border-radius: 16px; background: var(--surface); box-shadow: 0 24px 64px rgb(0 0 0 / .3); overscroll-behavior: contain; }
+.panier { position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 42; display: none; width: min(400px, calc(100vw - 32px)); max-height: 70dvh; overflow: auto; padding: 12px; border: 1px solid var(--accent); border-radius: 16px; background: var(--surface); box-shadow: 0 24px 64px rgb(0 0 0 / .3); overscroll-behavior: contain; }
 .panier.vu { display: block; }
 .panier .p-tete { display: flex; align-items: center; gap: 8px; font-weight: 750; }
 .panier .p-tete button { margin-left: auto; border: 0; background: none; color: var(--doux); text-decoration: underline; cursor: pointer; font-size: 13px; padding: 6px 0; }
@@ -232,6 +232,17 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 .panier .p-second:disabled { opacity: .45; cursor: not-allowed; }
 .panier .aide { margin-top: 8px; }
 .panier .p-alerte { color: var(--rouge); }
+.panier .p-tete .p-replier { margin-left: 0; width: 36px; height: 36px; border-radius: 10px; background: var(--surface-2); text-decoration: none; font-size: 18px; color: var(--texte); }
+@media (max-width: 860px) { .panier { left: 8px; right: 8px; width: auto; bottom: calc(8px + env(safe-area-inset-bottom)); max-height: 80dvh; } }
+/* marque-page : la sélection repliée, collée au bord GAUCHE (à droite, il cachait les boutons + du téléphone) ; il bouge à chaque ajout, un appui la déplie */
+.marque { position: fixed; left: 0; top: 42%; z-index: 41; display: none; flex-direction: column; align-items: center; gap: 4px; width: 38px; padding: 10px 4px; border: 0; border-radius: 0 14px 14px 0; background: var(--accent); color: #fff; font-weight: 800; box-shadow: 4px 6px 20px rgb(0 0 0 / .3); cursor: pointer; }
+.marque.vu { display: flex; }
+.marque b { font-size: 20px; line-height: 1; }
+.marque small { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; writing-mode: vertical-rl; transform: rotate(180deg); }
+.marque.bouge { animation: marque-bouge .6s cubic-bezier(.3,.7,.3,1); }
+@keyframes marque-bouge { 0% { transform: translateX(0); } 25% { transform: translateX(14px); } 50% { transform: translateX(0); } 75% { transform: translateX(7px); } 100% { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) { .marque.bouge { animation: none; outline: 3px solid #fff; } }
+.toast { z-index: 45; }
 </style>
 </head>
 <body>
@@ -277,7 +288,8 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 <div class="palette" id="palette" role="dialog" aria-modal="true" aria-label="Recherche"><div class="boite"><input id="pQ" role="combobox" aria-controls="pListe" aria-expanded="true" aria-autocomplete="list" aria-label="Aller à une autoroute ou un échangeur" placeholder="Aller à une autoroute ou un échangeur…" autocomplete="off"><ul id="pListe" role="listbox"></ul></div></div>
 <div class="bulle" id="bulle"></div>
 <div class="toast" id="toast"></div>
-<aside class="panier" id="panier" aria-live="polite" aria-label="Fermetures sélectionnées"></aside>
+<aside class="panier" id="panier" aria-label="Fermetures sélectionnées"></aside>
+<button type="button" class="marque" id="marque" aria-live="polite" aria-expanded="false" aria-controls="panier" title="Voir la sélection"></button>
 
 <script src="vues.js"></script>
 <script>
@@ -752,6 +764,7 @@ function basculer(p, vers, k) {
     etat.panier.push({ cle: c, route: etat.route, titre: nomR(etat.route), num: p.num || '', nom: p.nom, vers, k, l: p.f[k] });
   }
   panierRendu();
+  const m = $('marque'); m.classList.remove('bouge'); void m.offsetWidth; m.classList.add('bouge');
 }
 // zoom WME le plus fort qui montre toutes les fermetures (vue supposée de 1000 × 600 px) ; null sous le zoom 14
 function cadrePanier() {
@@ -774,12 +787,16 @@ function panierRendu() {
     b.setAttribute('aria-pressed', v); b.textContent = v ? '✓' : '+';
     b.title = v ? 'Retirer de la sélection' : 'Ajouter à la sélection (fermer plusieurs échangeurs d’un coup)';
   });
-  const P = $('panier'), n = etat.panier.length;
-  P.classList.toggle('vu', n > 0); if (!n) { P.innerHTML = ''; return; }
+  const P = $('panier'), M = $('marque'), n = etat.panier.length;
+  if (!n) etat.pOuvert = false;
+  M.classList.toggle('vu', n > 0 && !etat.pOuvert); M.setAttribute('aria-expanded', !!etat.pOuvert);
+  M.innerHTML = '<b>' + n + '</b><small>' + (n > 1 ? 'fermetures' : 'fermeture') + '</small>';
+  M.setAttribute('aria-label', n + (n > 1 ? ' fermetures sélectionnées' : ' fermeture sélectionnée') + ' : voir la sélection');
+  P.classList.toggle('vu', n > 0 && !!etat.pOuvert); if (!n) { P.innerHTML = ''; return; }
   const cadre = cadrePanier(), sens = etat.panier.map(x => x.l.s || '').join('');
   const doubles = (sens.match(/[ab]/g) || []).length, inconnus = (sens.match(/2/g) || []).length;
   const pl = (k, a, b) => k > 1 ? b : a;
-  P.innerHTML = '<div class="p-tete">' + n + pl(n, ' fermeture sélectionnée', ' fermetures sélectionnées') + ' · ' + idsPanier().length + ' segments<button type="button" id="pVider">Tout retirer</button></div>'
+  P.innerHTML = '<div class="p-tete">' + n + pl(n, ' fermeture sélectionnée', ' fermetures sélectionnées') + ' · ' + idsPanier().length + ' segments<button type="button" id="pVider">Tout retirer</button><button type="button" class="p-replier" id="pReplier" title="Replier" aria-label="Replier la sélection">‹</button></div>'
     + '<ul>' + etat.panier.map((x, j) => '<li><span><b>' + esc(x.titre + (x.num ? ' · ' + x.num : '') + ' · ' + x.nom) + '</b><small>' + esc(GESTE_TXT(x.k) + ' · vers ' + x.vers) + '</small></span><button type="button" data-retire="' + j + '" aria-label="Retirer">×</button></li>').join('') + '</ul>'
     + '<div class="p-dates"><label>Début<input type="datetime-local" id="pDeb" value="' + esc(etat.pDeb) + '"></label><label>Fin<input type="datetime-local" id="pFin" value="' + esc(etat.pFin) + '"></label></div>'
     + '<div class="p-boutons"><button type="button" class="p-plein" id="pCsv">Exporter le CSV (WCT, Advanced Closures)</button>'
@@ -817,6 +834,8 @@ document.addEventListener('click', ev => {
   if (b) { ev.preventDefault(); ev.stopPropagation(); const pv = cleBouton(b); if (pv) basculer(pv[0], pv[1], b.dataset.k); return; }
   const rt = ev.target.closest('[data-retire]'); if (rt) { etat.panier.splice(+rt.dataset.retire, 1); panierRendu(); return; }
   if (ev.target.id === 'pVider') { etat.panier = []; panierRendu(); return; }
+  if (ev.target.closest('#marque')) { etat.pOuvert = true; panierRendu(); return; }
+  if (ev.target.id === 'pReplier') { etat.pOuvert = false; panierRendu(); return; }
   if (ev.target.id === 'pCsv') { csvPanier(); return; }
   if (ev.target.id === 'pPerma') {
     const c = cadrePanier(); if (!c) return;
