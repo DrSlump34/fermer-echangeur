@@ -232,7 +232,9 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 .panier .p-second:disabled { opacity: .45; cursor: not-allowed; }
 .panier .aide { margin-top: 8px; }
 .panier .p-alerte { color: var(--rouge); }
-.panier .p-tete .p-replier { margin-left: 0; width: 36px; height: 36px; border-radius: 10px; background: var(--surface-2); text-decoration: none; font-size: 18px; color: var(--texte); }
+/* replier : bien visible (demande de l'auteur), mais pas plein : le seul bouton plein reste l'export */
+.panier .p-tete .p-replier { margin-left: 0; display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 12px 0 8px; border: 2px solid var(--accent); border-radius: 10px; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); text-decoration: none; font-size: 14px; font-weight: 800; }
+.panier .p-tete .p-replier b { font-size: 22px; line-height: 1; }
 @media (max-width: 860px) { .panier { left: 8px; right: 8px; width: auto; bottom: calc(8px + env(safe-area-inset-bottom)); max-height: 80dvh; } }
 /* marque-page : la sélection repliée, collée au bord GAUCHE (à droite, il cachait les boutons + du téléphone) ; il bouge à chaque ajout, un appui la déplie */
 .marque { position: fixed; left: 0; top: 42%; z-index: 41; display: none; flex-direction: column; align-items: center; gap: 4px; width: 38px; padding: 10px 4px; border: 0; border-radius: 0 14px 14px 0; background: var(--accent); color: #fff; font-weight: 800; box-shadow: 4px 6px 20px rgb(0 0 0 / .3); cursor: pointer; }
@@ -796,7 +798,7 @@ function panierRendu() {
   const cadre = cadrePanier(), sens = etat.panier.map(x => x.l.s || '').join('');
   const doubles = (sens.match(/[ab]/g) || []).length, inconnus = (sens.match(/2/g) || []).length;
   const pl = (k, a, b) => k > 1 ? b : a;
-  P.innerHTML = '<div class="p-tete">' + n + pl(n, ' fermeture sélectionnée', ' fermetures sélectionnées') + ' · ' + idsPanier().length + ' segments<button type="button" id="pVider">Tout retirer</button><button type="button" class="p-replier" id="pReplier" title="Replier" aria-label="Replier la sélection">‹</button></div>'
+  P.innerHTML = '<div class="p-tete">' + n + pl(n, ' fermeture sélectionnée', ' fermetures sélectionnées') + ' · ' + idsPanier().length + ' segments<button type="button" id="pVider">Tout retirer</button><button type="button" class="p-replier" id="pReplier" title="Replier la sélection en onglet" aria-label="Replier la sélection"><b>‹</b> Replier</button></div>'
     + '<ul>' + etat.panier.map((x, j) => '<li><span><b>' + esc(x.titre + (x.num ? ' · ' + x.num : '') + ' · ' + x.nom) + '</b><small>' + esc(GESTE_TXT(x.k) + ' · vers ' + x.vers) + '</small></span><button type="button" data-retire="' + j + '" aria-label="Retirer">×</button></li>').join('') + '</ul>'
     + '<div class="p-dates"><label>Début<input type="datetime-local" id="pDeb" value="' + esc(etat.pDeb) + '"></label><label>Fin<input type="datetime-local" id="pFin" value="' + esc(etat.pFin) + '"></label></div>'
     + '<div class="p-boutons"><button type="button" class="p-plein" id="pCsv">Exporter le CSV (WCT, Advanced Closures)</button>'
@@ -835,7 +837,7 @@ document.addEventListener('click', ev => {
   const rt = ev.target.closest('[data-retire]'); if (rt) { etat.panier.splice(+rt.dataset.retire, 1); panierRendu(); return; }
   if (ev.target.id === 'pVider') { etat.panier = []; panierRendu(); return; }
   if (ev.target.closest('#marque')) { etat.pOuvert = true; panierRendu(); return; }
-  if (ev.target.id === 'pReplier') { etat.pOuvert = false; panierRendu(); return; }
+  if (ev.target.closest('#pReplier')) { etat.pOuvert = false; panierRendu(); return; }
   if (ev.target.id === 'pCsv') { csvPanier(); return; }
   if (ev.target.id === 'pPerma') {
     const c = cadrePanier(); if (!c) return;
