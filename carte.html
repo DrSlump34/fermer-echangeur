@@ -74,6 +74,8 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 .ov-m rect { fill: #334155; stroke: #fff; stroke-width: 2; } .ov-m text { font: 800 13px ui-sans-serif, system-ui; fill: #fff; dominant-baseline: central; }
 .ov-m .lib { font: 700 14px ui-sans-serif, system-ui; fill: var(--texte); paint-order: stroke; stroke: var(--fond); stroke-width: 4px; }
 .voisin-c text { font: 800 11px ui-sans-serif, system-ui; fill: #fff; text-anchor: middle; dominant-baseline: central; }
+.voisin-c.dep rect { fill: #ffd200; stroke: #111; } .voisin-c.dep text { fill: #111; }   /* route départementale : cartouche jaune */
+.cartouche.dep { background: #ffd200; color: #111; box-shadow: inset 0 0 0 2px #111, 0 0 0 1px #ffd200; }
 .ville circle { fill: var(--ville); }
 .ville text { font: 600 12px ui-sans-serif, system-ui; fill: var(--ville); paint-order: stroke; stroke: var(--fond); stroke-width: 3px; }
 .ville.grande text { font-size: 14px; }
@@ -219,6 +221,12 @@ const fmtKm = x => x.toFixed(1).replace('.', ',');   // km à la française (aud
 
 const VOISINS = {};
 let RESEAU = null, VILLES = null;
+// liste des routes (d/_liste.json, écrite par assembler.py) : titres des rocades et des voies rapides (« D914 (92) »)
+let LISTE = [];
+const infoR = r => LISTE.find(x => x.route === r);
+// nom court d'une route sur un cartouche : référence d'une voie rapide (D1124), ⟳ pour une rocade
+const courtR = r => { const i = infoR(r); return i && i.vr ? i.titre.split(' ')[0] : r.replace(/^anneau-/, '⟳ ').replace(/-/g, ' '); };
+const depR = r => { const i = infoR(r); return !!(i && i.vr && i.titre[0] === 'D'); };
 
 /* ================= Géométrie : mètres, nord en haut ================= */
 let LON0 = 0, LAT0 = 0, CX = 1;
@@ -573,12 +581,12 @@ function dessiner() {
   for (const [r, g] of etat.voisins) {
     const vis = g.chaussees[0].flat().map(m).filter(dedans);
     if (!vis.length) continue;
-    const nom = r.replace(/^anneau-/, '⟳ ').replace(/-/g, ' '), w = Math.max(24, largeur(nom, '800 11px') + 14);
+    const nom = courtR(r), w = Math.max(24, largeur(nom, '800 11px') + 14);
     for (const f of [.5, .35, .65, .2, .8, .1, .9]) {
       const q = X(vis[Math.floor((vis.length - 1) * f)]), b = [q[0] - w / 2 - 2, q[1] - 12, w + 4, 24];
       if (!libre(b)) continue;
       prendre(b);
-      hVoisins += '<g class="voisin-c" data-route="' + esc(r) + '" transform="translate(' + q[0].toFixed(1) + ',' + q[1].toFixed(1) + ')"><title>Ouvrir ' + esc(nom) + '</title><rect x="' + (-w / 2).toFixed(1) + '" y="-10" width="' + w.toFixed(1) + '" height="20" rx="5"/><text>' + esc(nom) + '</text></g>';
+      hVoisins += '<g class="voisin-c' + (depR(r) ? ' dep' : '') + '" data-route="' + esc(r) + '" transform="translate(' + q[0].toFixed(1) + ',' + q[1].toFixed(1) + ')"><title>Ouvrir ' + esc(nom) + '</title><rect x="' + (-w / 2).toFixed(1) + '" y="-10" width="' + w.toFixed(1) + '" height="20" rx="5"/><text>' + esc(nom) + '</text></g>';
       break;
     }
   }
@@ -676,8 +684,8 @@ function dessinerOuvrage() {
       }
     }
     if (meilleur) {
-      const q = meilleur, nom = r.replace(/^anneau-/, '⟳ ').replace(/-/g, ' '), w = 14 + nom.length * 7;
-      h += '<g class="voisin-c" data-route="' + esc(r) + '" transform="translate(' + q[0].toFixed(1) + ',' + q[1].toFixed(1) + ')"><title>Ouvrir ' + esc(nom) + '</title><rect x="' + (-w / 2) + '" y="-10" width="' + w + '" height="20" rx="5"/><text>' + esc(nom) + '</text></g>';
+      const q = meilleur, nom = courtR(r), w = 14 + nom.length * 7;
+      h += '<g class="voisin-c' + (depR(r) ? ' dep' : '') + '" data-route="' + esc(r) + '" transform="translate(' + q[0].toFixed(1) + ',' + q[1].toFixed(1) + ')"><title>Ouvrir ' + esc(nom) + '</title><rect x="' + (-w / 2) + '" y="-10" width="' + w + '" height="20" rx="5"/><text>' + esc(nom) + '</text></g>';
     }
   }
   for (const [nom, lon, lat, pop] of VILLES) {
@@ -736,7 +744,7 @@ async function chargerOuvrage(id) {
   const c = G ? [(G.a[0] + G.b[0]) / 2, (G.a[1] + G.b[1]) / 2] : ptOuvrage(o);
   etat.ov = o; etat.ovG = G; etat.route = null; etat.ref = null; etat.D = null; etat.rangs = []; etat.actif = -1; etat.sCam = null;
   FE_VUES.ouvrage(id);
-  $('choix').value = 'o:' + id; $('cart').innerHTML = icoOuv(o.type);
+  $('choix').value = 'o:' + id; $('cart').innerHTML = icoOuv(o.type); $('cart').classList.remove('dep');
   $('titre').innerHTML = '<small>' + esc(o.route || '') + ' · ' + String(o.km).replace('.', ',') + ' km</small>';
   LON0 = c[0]; LAT0 = c[1]; CX = Math.cos(LAT0 * Math.PI / 180);
   // l'ouvrage occupe un peu plus de la moitié de l'écran
@@ -950,7 +958,7 @@ async function charger(route, cible) {
   etat.route = route; etat.sCam = null; etat.actif = -1;
   FE_VUES.route(route);
   $('choix').value = route;
-  $('cart').textContent = route.startsWith('anneau-') ? '⟳' : route;
+  $('cart').textContent = route.startsWith('anneau-') ? '⟳' : courtR(route); $('cart').classList.toggle('dep', depR(route));
   etat.D = D; etat.G = G;
   $('titre').innerHTML = '<small>' + esc(D.chaussees.map(c => c.vers).join(' ↔ ')) + '</small>';
   const tous = G.chaussees.flat(2);
@@ -996,14 +1004,17 @@ window.GEO = {
 };
 
 (async () => {
-  [RESEAU, VILLES] = await Promise.all([fetch('geo/_reseau.json').then(x => x.json()), fetch('geo/_villes.json').then(x => x.json())]);
+  [RESEAU, VILLES, LISTE] = await Promise.all([fetch('geo/_reseau.json').then(x => x.json()), fetch('geo/_villes.json').then(x => x.json()), fetch('d/_liste.json').then(x => x.json()).catch(() => [])]);
   const cle = r => r.startsWith('anneau-') ? [1, 0, r] : [0, parseInt(r.slice(1), 10) || 0, r];
-  const routes = Object.keys(RESEAU).sort((a, b) => { const x = cle(a), y = cle(b); return x[0] - y[0] || x[1] - y[1] || (x[2] < y[2] ? -1 : 1); });
+  // ordre d'assembler.py (autoroutes, rocades, voies rapides par ordre alphanumérique) ; à défaut de liste, l'ancien tri
+  const routes = LISTE.length ? LISTE.map(x => x.route).filter(r => r in RESEAU) : Object.keys(RESEAU).sort((a, b) => { const x = cle(a), y = cle(b); return x[0] - y[0] || x[1] - y[1] || (x[2] < y[2] ? -1 : 1); });
+  const estVR = r => { const i = infoR(r); return !!(i && i.vr); };
   OUVRAGES = await fetch('d/ouvrages.json').then(x => x.json()).catch(() => []);
-  const opt = r => '<option value="' + esc(r) + '">' + esc(r.replace(/^anneau-/, '⟳ ').replace(/-/g, ' ')) + '</option>';
+  const opt = r => '<option value="' + esc(r) + '">' + esc(estVR(r) ? infoR(r).titre : r.replace(/^anneau-/, '⟳ ').replace(/-/g, ' ')) + '</option>';
   $('choix').innerHTML = (OUVRAGES.length ? '<optgroup label="Tunnels, ponts, viaducs">' + OUVRAGES.map(o => '<option value="o:' + esc(o.id) + '">' + icoOuv(o.type, 1) + ' ' + esc(o.titre) + '</option>').join('') + '</optgroup>' : '')
-    + '<optgroup label="Autoroutes">' + routes.filter(r => !r.startsWith('anneau-')).map(opt).join('') + '</optgroup>'
-    + '<optgroup label="Rocades et périphériques">' + routes.filter(r => r.startsWith('anneau-')).map(opt).join('') + '</optgroup>';
+    + '<optgroup label="Autoroutes">' + routes.filter(r => !r.startsWith('anneau-') && !estVR(r)).map(opt).join('') + '</optgroup>'
+    + '<optgroup label="Rocades et périphériques">' + routes.filter(r => r.startsWith('anneau-')).map(opt).join('') + '</optgroup>'
+    + '<optgroup label="Voies rapides">' + routes.filter(estVR).map(opt).join('') + '</optgroup>';
   // la dernière autoroute vue (ou celle de l'adresse ?r=…), commune aux trois vues
   FE_VUES.init('carte');
   // aires et péages : la même mémoire que les autres vues (audit n° 21)
