@@ -206,6 +206,32 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 /* compteur de gestes du téléphone : rouge foncé sur rose (5,5), rouge clair sur bordeaux (5,9) (contraste, audit n° 32) */
 .m-n { color: #b91c1c; }
 @media (prefers-color-scheme: dark) { .m-n { color: #f87171; } }
+/* ===== Sélection de plusieurs fermetures : un permalien, ou un CSV pour WCT / WME Advanced Closures ===== */
+.paire { display: flex; gap: 6px; align-items: stretch; min-width: 0; }
+.paire.large { grid-column: 1 / -1; }
+.paire > .act, .paire > .g-act { flex: 1; }
+.ajout { flex: none; width: 44px; min-height: 44px; border: 1px solid var(--bord); border-radius: 12px; background: var(--surface); color: var(--doux); font-size: 22px; font-weight: 800; line-height: 1; cursor: pointer; }
+.ajout:hover { border-color: var(--accent); color: var(--accent); }
+.ajout[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.panier { position: fixed; left: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 25; display: none; width: min(400px, calc(100vw - 32px)); max-height: 70dvh; overflow: auto; padding: 12px; border: 1px solid var(--accent); border-radius: 16px; background: var(--surface); box-shadow: 0 24px 64px rgb(0 0 0 / .3); overscroll-behavior: contain; }
+.panier.vu { display: block; }
+.panier .p-tete { display: flex; align-items: center; gap: 8px; font-weight: 750; }
+.panier .p-tete button { margin-left: auto; border: 0; background: none; color: var(--doux); text-decoration: underline; cursor: pointer; font-size: 13px; padding: 6px 0; }
+.panier ul { list-style: none; margin: 8px 0; padding: 0; }
+.panier li { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--bord); font-size: 13px; }
+.panier li span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.panier li small { display: block; color: var(--doux); }
+.panier li button { flex: none; width: 32px; height: 32px; border: 0; border-radius: 8px; background: var(--surface-2); cursor: pointer; }
+.panier .p-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+.panier .p-dates label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--doux); }
+.panier .p-dates input { min-width: 0; padding: 7px 8px; border: 1px solid var(--bord); border-radius: 9px; background: var(--surface-2); }
+.panier .p-boutons { display: grid; gap: 8px; }
+.panier .p-plein, .panier .p-second { min-height: 44px; padding: 8px 12px; border-radius: 12px; font-weight: 700; cursor: pointer; }
+.panier .p-plein { border: 0; background: var(--accent); color: #fff; }
+.panier .p-second { border: 1px solid var(--bord); background: var(--surface-2); }
+.panier .p-second:disabled { opacity: .45; cursor: not-allowed; }
+.panier .aide { margin-top: 8px; }
+.panier .p-alerte { color: var(--rouge); }
 </style>
 </head>
 <body>
@@ -251,6 +277,7 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 <div class="palette" id="palette" role="dialog" aria-modal="true" aria-label="Recherche"><div class="boite"><input id="pQ" role="combobox" aria-controls="pListe" aria-expanded="true" aria-autocomplete="list" aria-label="Aller à une autoroute ou un échangeur" placeholder="Aller à une autoroute ou un échangeur…" autocomplete="off"><ul id="pListe" role="listbox"></ul></div></div>
 <div class="bulle" id="bulle"></div>
 <div class="toast" id="toast"></div>
+<aside class="panier" id="panier" aria-live="polite" aria-label="Fermetures sélectionnées"></aside>
 
 <script src="vues.js"></script>
 <script>
@@ -447,10 +474,10 @@ function blocSens(p, cote, i) {
     + (p.dest && p.dest.length ? '<div class="aide" style="margin:-4px 0 8px">Panneau : ' + esc(p.dest.join(', ')) + '</div>' : '')
     + '<div class="actions">' + GESTES.map(g => {
       const l = p.f[g.k]; if (g.k === 'deux' && !l) return '';
-      return l ? '<a class="act' + (g.large ? ' large' : '') + '" href="' + esc(lien(l)) + '" target="_blank" rel="noopener" data-c="' + cote + '" data-k="' + g.k + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span>' + (etat.cote === cote ? '<kbd class="k">' + g.touche + '</kbd>' : '') + '</a>'
+      return l ? paire('<a class="act' + (g.large ? ' large' : '') + '" href="' + esc(lien(l)) + '" target="_blank" rel="noopener" data-c="' + cote + '" data-k="' + g.k + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span>' + (etat.cote === cote ? '<kbd class="k">' + g.touche + '</kbd>' : '') + '</a>', g.large, 'data-r="' + i + '" data-c="' + cote + '" data-k="' + g.k + '"', cleP(p, ch.vers, g.k))
         : '<span class="act off' + (g.large ? ' large' : '') + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></span>';
     }).join('')
-    + (p.f.tout ? '<a class="act large" style="border-color:var(--rouge)" href="' + esc(lien(p.f.tout)) + '" target="_blank" rel="noopener">' + ICO.interdit + ICO.interdit + '<span>' + esc(libTout(p, ch.vers)) + '</span>' + (etat.cote === cote ? '<kbd class="k">5</kbd>' : '') + '</a>' : '')
+    + (p.f.tout ? paire('<a class="act large" style="border-color:var(--rouge)" href="' + esc(lien(p.f.tout)) + '" target="_blank" rel="noopener">' + ICO.interdit + ICO.interdit + '<span>' + esc(libTout(p, ch.vers)) + '</span>' + (etat.cote === cote ? '<kbd class="k">5</kbd>' : '') + '</a>', true, 'data-r="' + i + '" data-c="' + cote + '" data-k="tout"', cleP(p, ch.vers, 'tout')) : '')
     + '</div>' + noteSansSortie(p) + lienBif(p) + '<button class="lien-ids" type="button" data-copie="' + tous.join(',') + '">Copier les ID des segments</button></div>';
 }
 function lienBif(p) {
@@ -671,8 +698,8 @@ function mGestes(i) {
   const tous = [...new Set(Object.values(p.f).filter(Boolean).flatMap(l => l.ids))];
   $('gBoite').innerHTML = '<div class="poignee"></div><div class="g-tete">' + pastille({ d: p }) + '<div><b>' + esc(p.nom) + '</b><small>' + esc((p.dest || []).join(', ')) + '</small></div></div>'
     + '<div class="g-sens"><span class="panneau">→ ' + esc(ch.vers) + '</span></div><div class="g-gestes">'
-    + GESTES.map(g => { const l = p.f[g.k]; if (g.k === 'deux' && !l) return ''; return l ? '<a class="g-act' + (g.large ? ' large' : '') + '" href="' + esc(lien(l)) + '" target="_blank" rel="noopener">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></a>' : '<span class="g-act off' + (g.large ? ' large' : '') + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></span>'; }).join('')
-    + (p.f.tout ? '<a class="g-act large tout" href="' + esc(lien(p.f.tout)) + '" target="_blank" rel="noopener">' + ICO.interdit + ICO.interdit + '<span>' + esc(libTout(p, ch.vers)) + '</span></a>' : '')
+    + GESTES.map(g => { const l = p.f[g.k]; if (g.k === 'deux' && !l) return ''; return l ? paire('<a class="g-act' + (g.large ? ' large' : '') + '" href="' + esc(lien(l)) + '" target="_blank" rel="noopener">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></a>', g.large, 'data-m="' + i + '" data-k="' + g.k + '"', cleP(p, ch.vers, g.k)) : '<span class="g-act off' + (g.large ? ' large' : '') + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></span>'; }).join('')
+    + (p.f.tout ? paire('<a class="g-act large tout" href="' + esc(lien(p.f.tout)) + '" target="_blank" rel="noopener">' + ICO.interdit + ICO.interdit + '<span>' + esc(libTout(p, ch.vers)) + '</span></a>', true, 'data-m="' + i + '" data-k="tout"', cleP(p, ch.vers, 'tout')) : '')
     + '</div>' + noteSansSortie(p) + lienBif(p) + '<button class="lien-ids" type="button" data-copie="' + tous.join(',') + '">Copier les ID des segments</button>';
   ouvrirF('gestes');
 }
@@ -697,6 +724,106 @@ async function mOuvrage(id) {
   $('mListe').innerHTML = '<div class="g-gestes">' + (o.sens || []).filter(Boolean).map(x => '<a class="g-act" href="' + esc(lien(x.f)) + '" target="_blank" rel="noopener">' + ICO.interdit + '<span>Fermé vers ' + esc(x.vers) + '</span></a>').join('') + '<a class="g-act large tout" href="' + esc(lien(o.tout)) + '" target="_blank" rel="noopener">' + ICO.interdit + ICO.interdit + '<span>Fermé dans les deux sens</span></a></div>' + (o.double_sens ? '<p class="aide">Segment à double sens : choisissez la direction dans la fenêtre de fermeture de WME.</p>' : '');
 }
 $('fQ').oninput = async () => { const q = sansAcc($('fQ').value.trim()); ROUTES_TROUVEES = null; if (q.length >= 3) { const I = await index(); ROUTES_TROUVEES = new Set(I.filter(x => sansAcc(x[2] + ' ' + x[3]).includes(q)).map(x => x[0])); } fListe(); };
+
+/* ---------- Sélection de plusieurs fermetures (suggestion de MisterLogik, 13/11/2026) ----------
+   Le bouton + à côté de chaque geste l'ajoute à une sélection, qui peut couvrir plusieurs échangeurs, les deux sens,
+   plusieurs autoroutes. Deux sorties :
+   - un CSV au format de WME Advanced Closures, que WCT (WME Closures Toolkit) lit aussi : UNE LIGNE PAR SEGMENT, avec son
+     sens de fermeture (champ « s » des données, calculé par assembler.py : A, B ; a/b = segment à double sens fermé dans
+     un seul ; 2 = inconnu). Une ligne d'un seul segment n'est jamais inversée par WCT (sa SPECIFICATIONS, § 12.1). À
+     l'import, WCT charge la carte vue par vue : des échangeurs éloignés ne posent pas de problème ;
+   - un seul permalien WME, seulement si tout tient dans une vue au zoom 14 ou plus. */
+etat.panier = [];
+const GESTE_TXT = k => k === 'tout' ? 'Échangeur fermé' : GESTES.find(g => g.k === k).txt;
+const cleP = (p, vers, k) => [etat.route, vers, p.km, p.nom, k].join('|');
+const dansPanier = c => etat.panier.some(x => x.cle === c);
+function paire(a, large, data, cle) {
+  const dedans = dansPanier(cle);
+  return '<div class="paire' + (large ? ' large' : '') + '">' + a + '<button type="button" class="ajout" ' + data + ' aria-pressed="' + dedans + '" title="' + (dedans ? 'Retirer de la sélection' : 'Ajouter à la sélection (fermer plusieurs échangeurs d’un coup)') + '" aria-label="' + (dedans ? 'Retirer de la sélection' : 'Ajouter à la sélection') + '">' + (dedans ? '✓' : '+') + '</button></div>';
+}
+const pad2 = n => String(n).padStart(2, '0');
+const enLocal = d => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + 'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+function basculer(p, vers, k) {
+  const c = cleP(p, vers, k), j = etat.panier.findIndex(x => x.cle === c);
+  if (j >= 0) etat.panier.splice(j, 1);
+  else {
+    // dates proposées : maintenant, et deux heures plus tard (choix de l'auteur), modifiables avant l'export
+    if (!etat.panier.length) { const m = new Date(); m.setSeconds(0, 0); etat.pDeb = enLocal(m); etat.pFin = enLocal(new Date(m.getTime() + 2 * 3600e3)); }
+    etat.panier.push({ cle: c, route: etat.route, titre: nomR(etat.route), num: p.num || '', nom: p.nom, vers, k, l: p.f[k] });
+  }
+  panierRendu();
+}
+// zoom WME le plus fort qui montre toutes les fermetures (vue supposée de 1000 × 600 px) ; null sous le zoom 14
+function cadrePanier() {
+  const cs = etat.panier.map(x => x.l.c), lo = cs.map(c => c[0]), la = cs.map(c => c[1]);
+  const c = [(Math.min(...lo) + Math.max(...lo)) / 2, (Math.min(...la) + Math.max(...la)) / 2], cos = Math.cos(c[1] * Math.PI / 180);
+  const dx = (Math.max(...lo) - Math.min(...lo)) * 111320 * cos + 400, dy = (Math.max(...la) - Math.min(...la)) * 110540 + 400;
+  let z = Math.min(...etat.panier.map(x => x.l.z));
+  while (z >= 14 && (dx > 1000 * 156543.03 * cos / 2 ** z || dy > 600 * 156543.03 * cos / 2 ** z)) z--;
+  return z < 14 ? null : { c: [+c[0].toFixed(5), +c[1].toFixed(5)], z };
+}
+const idsPanier = () => [...new Set(etat.panier.flatMap(x => x.l.ids))];
+const cleBouton = b => {
+  if (b.dataset.m != null) { const p = etat.mPts && etat.mPts[+b.dataset.m]; return p && [p, etat.data.chaussees[etat.sensMobile].vers]; }
+  const r = etat.rangs[+b.dataset.r], p = r && r[b.dataset.c];
+  return p && [p, ordreSens(etat.data)[b.dataset.c === 'd' ? 0 : 1].vers];
+};
+function panierRendu() {
+  document.querySelectorAll('.ajout').forEach(b => {
+    const pv = cleBouton(b), v = !!pv && dansPanier(cleP(pv[0], pv[1], b.dataset.k));
+    b.setAttribute('aria-pressed', v); b.textContent = v ? '✓' : '+';
+    b.title = v ? 'Retirer de la sélection' : 'Ajouter à la sélection (fermer plusieurs échangeurs d’un coup)';
+  });
+  const P = $('panier'), n = etat.panier.length;
+  P.classList.toggle('vu', n > 0); if (!n) { P.innerHTML = ''; return; }
+  const cadre = cadrePanier(), sens = etat.panier.map(x => x.l.s || '').join('');
+  const doubles = (sens.match(/[ab]/g) || []).length, inconnus = (sens.match(/2/g) || []).length;
+  const pl = (k, a, b) => k > 1 ? b : a;
+  P.innerHTML = '<div class="p-tete">' + n + pl(n, ' fermeture sélectionnée', ' fermetures sélectionnées') + ' · ' + idsPanier().length + ' segments<button type="button" id="pVider">Tout retirer</button></div>'
+    + '<ul>' + etat.panier.map((x, j) => '<li><span><b>' + esc(x.titre + (x.num ? ' · ' + x.num : '') + ' · ' + x.nom) + '</b><small>' + esc(GESTE_TXT(x.k) + ' · vers ' + x.vers) + '</small></span><button type="button" data-retire="' + j + '" aria-label="Retirer">×</button></li>').join('') + '</ul>'
+    + '<div class="p-dates"><label>Début<input type="datetime-local" id="pDeb" value="' + esc(etat.pDeb) + '"></label><label>Fin<input type="datetime-local" id="pFin" value="' + esc(etat.pFin) + '"></label></div>'
+    + '<div class="p-boutons"><button type="button" class="p-plein" id="pCsv">Exporter le CSV (WCT, Advanced Closures)</button>'
+    + '<button type="button" class="p-second" id="pPerma"' + (cadre ? '' : ' disabled') + '>Copier le permalien WME</button></div>'
+    + '<div class="aide"><p>Dans WCT, onglet Import : déposez le fichier. <b>« Ajouter à la file »</b> garde ces dates et le sens de chaque segment ; rien n’est posé avant « Appliquer ». <b>« Sélectionner les segments »</b> ne reprend que les segments : réglez dates et MTE, et choisissez <b>Double sens</b> (WCT ne ferme que le sens ouvert à la circulation).</p>'
+    + (doubles ? '<p class="p-alerte">' + doubles + pl(doubles, ' segment à double sens, à ne fermer que dans un sens', ' segments à double sens, à ne fermer que dans un sens') + ' : passez par « Ajouter à la file », « Double sens » ' + pl(doubles, 'le fermerait', 'les fermerait') + ' dans les deux.</p>' : '')
+    + (inconnus ? '<p class="p-alerte">' + inconnus + pl(inconnus, ' segment de sens inconnu, exporté « deux sens » : vérifiez-le dans WME.', ' segments de sens inconnu, exportés « deux sens » : vérifiez-les dans WME.') + '</p>' : '')
+    + (cadre ? '' : '<p>Permalien indisponible : les fermetures sont trop éloignées pour une seule vue de WME. Le CSV n’a pas cette limite.</p>') + '</div>';
+}
+function csvPanier() {
+  const deb = ($('pDeb').value || '').replace('T', ' '), fin = ($('pFin').value || '').replace('T', ' ');
+  const motif = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/;
+  if (!motif.test(deb) || !motif.test(fin)) { toast('Indiquez le début et la fin'); return; }
+  if (fin <= deb) { toast('La fin doit suivre le début'); return; }
+  if (new Date(fin.replace(' ', 'T')) <= new Date()) { toast('La fin est déjà passée'); return; }
+  const q = t => '"' + String(t).replace(/"/g, '""') + '"', DIR = { A: 'A to B', a: 'A to B', B: 'B to A', b: 'B to A', 2: 'TWO WAY' };
+  const vu = new Map();   // un segment présent dans deux gestes (sortie obligatoire et « deux ») : une seule ligne
+  for (const x of etat.panier) x.l.ids.forEach((id, j) => {
+    const d = DIR[(x.l.s || '')[j]] || 'TWO WAY';
+    if (vu.has(id)) { if (vu.get(id).d !== d) vu.get(id).d = 'TWO WAY'; return; }
+    vu.set(id, { d, x });
+  });
+  // en-tête et colonnes : celles de WME Advanced Closures, reprises telles quelles par WCT (son export, même texte)
+  const lignes = ['header,reason,start date (yyyy-mm-dd hh:mm),end date (yyyy-mm-dd hh:mm),direction (A to B|B to A|TWO WAY),ignore trafic (Yes|No),segment IDs (id1;id2;...),lon/lat (like in a permalink: lon=xxx&lat=yyy),zoom (14 to 22),MTE id (empty cell if not),comment (optional)'];
+  // même motif sur toutes les lignes : WCT compte les réglages différents (dates, motif, sens, MTE) pour proposer son choix
+  for (const [id, { d, x }] of vu) lignes.push(['add', q('Fermer un échangeur'), deb, fin, d, 'No', id, 'lon=' + x.l.c[0] + '&lat=' + x.l.c[1], Math.min(22, Math.max(14, x.l.z)), '', q(x.titre + (x.num ? ' ' + x.num : '') + ' ' + x.nom + ' : ' + GESTE_TXT(x.k) + ' vers ' + x.vers)].join(','));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([lignes.join('\n') + '\n'], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'fermer-echangeur-' + deb.replace(/[-: ]/g, '').slice(0, 12) + '.csv';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast(vu.size + ' segments exportés');
+}
+document.addEventListener('click', ev => {
+  const b = ev.target.closest('.ajout');
+  if (b) { ev.preventDefault(); ev.stopPropagation(); const pv = cleBouton(b); if (pv) basculer(pv[0], pv[1], b.dataset.k); return; }
+  const rt = ev.target.closest('[data-retire]'); if (rt) { etat.panier.splice(+rt.dataset.retire, 1); panierRendu(); return; }
+  if (ev.target.id === 'pVider') { etat.panier = []; panierRendu(); return; }
+  if (ev.target.id === 'pCsv') { csvPanier(); return; }
+  if (ev.target.id === 'pPerma') {
+    const c = cadrePanier(); if (!c) return;
+    navigator.clipboard.writeText(lien({ c: c.c, z: c.z, ids: idsPanier() })).then(() => toast('Permalien copié (' + idsPanier().length + ' segments)'), () => toast('Copie impossible'));
+  }
+}, true);
+document.addEventListener('change', ev => { if (ev.target.id === 'pDeb') etat.pDeb = ev.target.value; if (ev.target.id === 'pFin') etat.pFin = ev.target.value; });
 
 /* ---------- Démarrage ---------- */
 listeRoutes('');
