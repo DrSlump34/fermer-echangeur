@@ -186,7 +186,7 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 <div id="piste"></div>
 <div class="bulle" id="bulle"></div>
 
-<script src="vues.js?v=2026-11-10"></script>
+<script src="vues.js?v=2026-11-15"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -786,13 +786,15 @@ function marquer() {
 }
 
 /* ================= Panneau ================= */
+// bouton + d'un geste : sélection de plusieurs fermetures, commune aux trois vues (FE_PANIER, vues.js ; MisterLogik, 15/11/2026)
+const paire = (a, large, p, vers, k) => FE_PANIER.paire(a, large, { route: etat.route, titre: (i => i && (i.vr || i.anneau) ? i.titre : etat.route)(infoR(etat.route)), vers, p, k });
 function bloc(p, ci) {
   const c = etat.D.chaussees[ci];
   if (!c) return '';
   if (!p) return '<div class="bloc"><span class="panneau">→ ' + esc(c.vers) + '</span><div class="aide">Rien dans ce sens à cet endroit.</div>' + (window.FE_ADMIN ? FE_ADMIN.panneau(null, ci) : '') + '</div>';
   return '<div class="bloc"><span class="panneau">→ ' + esc(c.vers) + '</span>' + (p.dest && p.dest.length ? '<div class="aide" style="margin:-4px 0 8px">Panneau : ' + esc(p.dest.join(', ')) + '</div>' : '')
-    + '<div class="actions">' + GESTES.map(g => { const l = p.f[g.k]; if (g.k === 'deux' && !l) return ''; return l ? '<a class="act' + (g.large ? ' large' : '') + '" target="_blank" rel="noopener" href="' + esc(lien(l)) + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></a>' : '<span class="act off' + (g.large ? ' large' : '') + '">' + g.ico + '<span>' + esc(texteGeste(g.k, p)) + '</span></span>'; }).join('')
-    + (p.f.tout ? '<a class="act large" style="border-color:var(--rouge)" target="_blank" rel="noopener" href="' + esc(lien(p.f.tout)) + '">' + ICO.interdit + ICO.interdit + '<span>' + esc(libTout(p, c.vers)) + '</span></a>' : '')
+    + '<div class="actions">' + GESTES.map(g => { const l = p.f[g.k]; if (g.k === 'deux' && !l) return ''; return l ? paire('<a class="act' + (g.large ? ' large' : '') + '" target="_blank" rel="noopener" href="' + esc(lien(l)) + '">' + g.ico + '<span>' + FE_VUES.reperes(esc(texteGeste(g.k, p)), g.k, p.kind) + '</span></a>', g.large, p, c.vers, g.k) : '<span class="act off' + (g.large ? ' large' : '') + '">' + g.ico + '<span>' + FE_VUES.reperes(esc(texteGeste(g.k, p)), g.k, p.kind) + '</span></span>'; }).join('')
+    + (p.f.tout ? paire('<a class="act large" style="border-color:var(--rouge)" target="_blank" rel="noopener" href="' + esc(lien(p.f.tout)) + '">' + ICO.interdit + ICO.interdit + '<span>' + FE_VUES.reperes(esc(libTout(p, c.vers)), 'tout', p.kind) + '</span></a>', true, p, c.vers, 'tout') : '')
     + '</div>' + (p.sans_sortie_propre && !p.f.sortie ? '<div class="aide" style="margin:8px 0 0">' + esc('Pas de « sortie interdite » ici : la bretelle de cette branche est commune à l’autre sens ou à une autre route ; la fermer couperait aussi leur trafic. Utilisez « Tout fermer » ou la sortie obligatoire.') + '</div>' : '')
     + (window.FE_ADMIN ? FE_ADMIN.panneau(p, ci) : '') + '</div>';
 }
