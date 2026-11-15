@@ -148,14 +148,33 @@
     toastE.textContent = t; toastE.classList.add('vu'); clearTimeout(toast.h); toast.h = setTimeout(() => toastE.classList.remove('vu'), 1700);
   }
 
+  // Ctrl+clic (Cmd+clic sur Mac) sur un geste : il entre dans la sélection (ou en sort) au lieu d'ouvrir WME, comme la
+  // multisélection de WME (MisterLogik, 15/11/2026 : deux demi-échangeurs qui ne se font pas face, à fermer ensemble).
+  const MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
+  const touche = MAC ? 'Cmd' : 'Ctrl';
+  const selection = ev => ev.ctrlKey || ev.metaKey;
+  // o = { route, titre, vers, p, k } ⇒ la clé du geste, enregistrée pour basculer()
+  function inscrire(o) {
+    const l = o.p && o.p.f && o.p.f[o.k]; if (!l) return null;
+    const c = cle(o.route, o.vers, o.p, o.k);
+    REG.set(c, { cle: c, route: o.route, titre: o.titre || o.route, num: o.p.num || '', nom: o.p.nom, vers: o.vers, k: o.k, l: { c: l.c, z: l.z, ids: l.ids, s: l.s || '' } });
+    return c;
+  }
+  function basculerAvecAvis(c) {
+    const avant = dedans(c); basculer(c);
+    const n = S.items.length;
+    toast((avant ? 'Retiré de la sélection' : 'Ajouté à la sélection') + ' · ' + n + (n > 1 ? ' fermetures' : ' fermeture'));
+  }
+  // geste de la carte ou de l'axe (pas de bouton + à côté) : vrai si le clic a été pris pour la sélection
+  function basculerGeste(o) { const c = inscrire(o); if (!c) return false; basculerAvecAvis(c); return true; }
+
   // o = { route, titre, vers, p, k } ; mini : bouton compact (cellule du tableau)
   function bouton(o, mini) {
-    const l = o.p.f[o.k]; if (!l) return '';
-    const c = cle(o.route, o.vers, o.p, o.k), v = dedans(c);
-    REG.set(c, { cle: c, route: o.route, titre: o.titre || o.route, num: o.p.num || '', nom: o.p.nom, vers: o.vers, k: o.k, l: { c: l.c, z: l.z, ids: l.ids, s: l.s || '' } });
+    const c = inscrire(o); if (!c) return '';
+    const v = dedans(c);
     return '<button type="button" class="ajout' + (mini ? ' mini' : '') + '" data-cle="' + esc(c) + '" aria-pressed="' + v + '" title="' + titreBouton(v) + '" aria-label="' + (v ? 'Retirer de la sélection' : 'Ajouter à la sélection') + '">' + (v ? '✓' : '+') + '</button>';
   }
-  const paire = (a, large, o) => '<div class="paire' + (large ? ' large' : '') + '">' + a + bouton(o) + '</div>';
+  const paire = (a, large, o) => '<div class="paire' + (large ? ' large' : '') + '" title="' + touche + '+clic sur le geste : l’ajouter à la sélection">' + a + bouton(o) + '</div>';
 
   function basculer(c) {
     const j = S.items.findIndex(x => x.cle === c);
@@ -292,6 +311,12 @@
     const t = ev.target;
     const b = t.closest('.ajout[data-cle]');
     if (b) { ev.preventDefault(); ev.stopPropagation(); basculer(b.dataset.cle); return; }
+    // Ctrl+clic sur le lien d'un geste qui a son bouton + : même effet que le +, WME ne s'ouvre pas
+    if (selection(ev)) {
+      // .paire (linéaire, carte, fiche du tableau) ou .b-paire (cellule du tableau) : le lien et son + sont frères
+      const a = t.closest('a'), b2 = a && a.parentElement && a.parentElement.querySelector(':scope > .ajout[data-cle]');
+      if (b2) { ev.preventDefault(); ev.stopPropagation(); basculerAvecAvis(b2.dataset.cle); return; }
+    }
     if (!panierE) return;
     const rt = t.closest('.fe-panier [data-retire]'); if (rt) { S.items.splice(+rt.dataset.retire, 1); garder(); rendu(); return; }
     if (t.id === 'pVider') { S.items = []; garder(); rendu(); return; }
@@ -307,5 +332,5 @@
   // une autre vue ouverte dans un autre onglet a changé la sélection : on la reprend
   window.addEventListener('storage', ev => { if (ev.key === MEM) { charger(); rendu(); } });
 
-  window.FE_PANIER = { bouton, paire, rendu };
+  window.FE_PANIER = { bouton, paire, rendu, basculerGeste, selection, touche };
 })();

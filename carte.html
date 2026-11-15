@@ -186,7 +186,7 @@ kbd { font: 600 11px/1 ui-monospace, monospace; padding: 3px 6px; border: 1px so
 <div id="piste"></div>
 <div class="bulle" id="bulle"></div>
 
-<script src="vues.js?v=2026-11-15"></script>
+<script src="vues.js?v=2026-11-16"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -889,7 +889,7 @@ $('monde').addEventListener('pointermove', ev => {
   if (g.classList.contains('absent') || !p) bulle.innerHTML = 'Rien à fermer ici<small>' + ({ sortie: 'pas de sortie', entree: 'pas d\'entrée', oblig: 'pas de tronçon' }[k]) + ' dans ce sens</small>';
   else {
     const cumul = k === 'oblig' && ev.shiftKey && p.f.deux, c = etat.D.chaussees[g.dataset.c === 'a' ? etat.ref.k : etat.D.chaussees.findIndex((x, i) => i !== etat.ref.k)];
-    bulle.innerHTML = esc(texteGeste(cumul ? 'deux' : k, p)) + '<small>' + esc(p.nom) + ' · vers ' + esc(c.vers) + ' · ' + (cumul ? p.f.deux : p.f[k]).ids.length + ' segment(s) · clic : ouvrir WME' + (k === 'oblig' && p.f.deux && !cumul ? ' · Maj : + entrée interdite' : '') + '</small>';
+    bulle.innerHTML = esc(texteGeste(cumul ? 'deux' : k, p)) + '<small>' + esc(p.nom) + ' · vers ' + esc(c.vers) + ' · ' + (cumul ? p.f.deux : p.f[k]).ids.length + ' segment(s) · clic : ouvrir WME · ' + FE_PANIER.touche + '+clic : sélection' + (k === 'oblig' && p.f.deux && !cumul ? ' · Maj : + entrée interdite' : '') + '</small>';
     g.classList.add('vu');
   }
   bulle.style.left = Math.min(innerWidth - 300, ev.clientX + 16) + 'px'; bulle.style.top = (ev.clientY + 16) + 'px'; bulle.classList.add('vu');
@@ -898,7 +898,12 @@ $('monde').addEventListener('pointerleave', () => { bulle.classList.remove('vu')
 $('monde').addEventListener('click', ev => {
   const g = ev.target.closest('.geste');
   if (g && !g.classList.contains('absent')) {
-    const p = etat.rangs[+g.dataset.i][g.dataset.c], l = g.dataset.k === 'oblig' && ev.shiftKey && p.f.deux ? p.f.deux : p.f[g.dataset.k];
+    const p = etat.rangs[+g.dataset.i][g.dataset.c], k = g.dataset.k === 'oblig' && ev.shiftKey && p.f.deux ? 'deux' : g.dataset.k, l = p.f[k];
+    if (FE_PANIER.selection(ev)) {
+      const c = etat.D.chaussees[g.dataset.c === 'a' ? etat.ref.k : etat.D.chaussees.findIndex((x, i) => i !== etat.ref.k)];
+      FE_PANIER.basculerGeste({ route: etat.route, titre: (i => i && (i.vr || i.anneau) ? i.titre : etat.route)(infoR(etat.route)), vers: c.vers, p, k });
+      return;
+    }
     window.open(lien(l), '_blank', 'noopener'); return;
   }
   const v = ev.target.closest('.voisin-c'); if (v) { ouvrirAutre(v.dataset.route); return; }
