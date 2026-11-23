@@ -830,14 +830,20 @@ $('detail').addEventListener('click', ev => {
 let MINI = null;
 function dessinerMini() {
   const W = $('mini').clientWidth, Hh = $('mini').clientHeight;
+  /* Seulement le TERRITOIRE de la vue : les routes dont le centre est à moins de 15° (~1 600 km) de la vue en cours
+     (métropole + Corse, ou le DOM affiché). Avec tout le réseau, l'emprise allait de la Martinique (−61°) à la
+     Nouvelle-Calédonie (+166°) : la métropole tenait en quelques pixels, la mini-carte n'était plus qu'un point (23/11). */
+  const centre = ps => { let x = 0, y = 0, n = 0; for (const p of ps) for (const [lo, la] of p) { x += lo; y += la; n++; } return n ? [x / n, y / n] : null; };
+  const ref = LON0 || LAT0 ? [LON0, LAT0] : centre(RESEAU[etat.route] || []);
+  const VUS = Object.entries(RESEAU).filter(([r, ps]) => { if (!ref || r === etat.route) return true; const c = centre(ps); return c && Math.hypot((c[0] - ref[0]) * Math.cos(ref[1] * Math.PI / 180), c[1] - ref[1]) < 15; });
   let lo0 = 180, la0 = 90, lo1 = -180, la1 = -90;
-  for (const p of Object.values(RESEAU).flat()) for (const [lo, la] of p) { lo0 = Math.min(lo0, lo); lo1 = Math.max(lo1, lo); la0 = Math.min(la0, la); la1 = Math.max(la1, la); }
+  for (const p of VUS.map(([, ps]) => ps).flat()) for (const [lo, la] of p) { lo0 = Math.min(lo0, lo); lo1 = Math.max(lo1, lo); la0 = Math.min(la0, la); la1 = Math.max(la1, la); }
   const cx = Math.cos((la0 + la1) / 2 * Math.PI / 180), s = Math.min((W - 14) / ((lo1 - lo0) * cx), (Hh - 14) / (la1 - la0));
   const ox = (W - (lo1 - lo0) * cx * s) / 2, oy = (Hh - (la1 - la0) * s) / 2;
   const f = ([lo, la]) => [ox + (lo - lo0) * cx * s, oy + (la1 - la) * s];
   MINI = { f, inv: (x, y) => [(x - ox) / (cx * s) + lo0, la1 - (y - oy) / s] };
   const ligne = (p, c) => '<polyline class="' + c + '" points="' + p.map(f).map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' ') + '"/>';
-  $('miniSvg').innerHTML = Object.entries(RESEAU).map(([r, ps]) => r === etat.route ? '' : ps.map(p => ligne(p, 'r')).join('')).join('')
+  $('miniSvg').innerHTML = VUS.map(([r, ps]) => r === etat.route ? '' : ps.map(p => ligne(p, 'r')).join('')).join('')
     + (RESEAU[etat.route] || []).map(p => ligne(p, 'moi')).join('') + '<circle class="ici" id="miniIci" r="4.5"/>';
 }
 function majMiniIci(p) {
